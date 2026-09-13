@@ -69,7 +69,7 @@ function CanPage() {
   useEffect(() => {
     let step = 0;
     if (scrollProgress >= 0.82) step = 4;
-    else if (scrollProgress >= 0.6) step = 3;
+    else if (scrollProgress >= 0.60) step = 3;
     else if (scrollProgress >= 0.38) step = 2;
     else if (scrollProgress >= 0.16) step = 1;
     else step = 0;
@@ -77,7 +77,7 @@ function CanPage() {
     setCurrentStep(step);
   }, [scrollProgress]);
 
-  // Spring/dampening interpolation loop for continuous, smooth progress scrubbing
+  // Dampened fluid interpolation loop for continuous, smooth physical progress scrubbing
   const animateInterpolation = useCallback(() => {
     const target = targetProgressRef.current;
     const current = currentProgressRef.current;
@@ -90,8 +90,8 @@ function CanPage() {
       return;
     }
 
-    // Dampened spring factor (0.18) for fluid physical response
-    const next = current + diff * 0.18;
+    // Dampened factor for physical stability and responsiveness
+    const next = current + diff * 0.22;
     currentProgressRef.current = next;
     setScrollProgress(Number(next.toFixed(4)));
 
@@ -139,7 +139,7 @@ function CanPage() {
     const { top, height } = trackBoundsRef.current;
     const totalScrollable = height - window.innerHeight;
 
-    const stepTargets = [0.05, 0.26, 0.48, 0.7, 0.94];
+    const stepTargets = [0.05, 0.26, 0.48, 0.70, 0.94];
     const targetRatio = stepTargets[stepIndex] ?? 0;
     const targetScrollY = top + targetRatio * totalScrollable;
 

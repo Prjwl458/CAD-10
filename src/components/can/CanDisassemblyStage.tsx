@@ -27,7 +27,7 @@ export function CanDisassemblyStage({
   /**
    * Continuous physical keyframe interpolation bound directly to scrollProgress (0..1).
    * All layers remain mounted continuously in the DOM; positions and opacities are updated
-   * continuously via smoothstep and ease cubic functions to prevent discrete swaps.
+   * continuously via smoothstep and cubic easing functions to ensure true 1:1 physical motion.
    */
   const { physicalTransforms, layerOpacities } = useMemo(() => {
     const p = clamp01(scrollProgress);
@@ -43,22 +43,22 @@ export function CanDisassemblyStage({
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-    // Continuous opacity envelopes across disassembly stages (no discrete jumps or unmounting)
-    const assembledOpacity = 1 - smoothstep(0.12, 0.22, p);
+    // Continuous opacity envelopes across disassembly stages
+    const assembledOpacity = 1 - smoothstep(0.10, 0.22, p);
 
-    const shellIn = smoothstep(0.12, 0.22, p);
-    const shellOut = 1 - smoothstep(0.32, 0.42, p);
+    const shellIn = smoothstep(0.08, 0.20, p);
+    const shellOut = 1 - smoothstep(0.34, 0.44, p);
     const shellOpacity = shellIn * shellOut;
 
-    const puIn = smoothstep(0.16, 0.28, p);
-    const puOut = 1 - smoothstep(0.56, 0.68, p);
+    const puIn = smoothstep(0.25, 0.38, p);
+    const puOut = 1 - smoothstep(0.58, 0.68, p);
     const puOpacity = puIn * puOut;
 
-    const vesselIn = smoothstep(0.48, 0.62, p);
-    const vesselOut = 1 - smoothstep(0.80, 0.90, p);
+    const vesselIn = smoothstep(0.50, 0.64, p);
+    const vesselOut = 1 - smoothstep(0.78, 0.88, p);
     const vesselOpacity = vesselIn * vesselOut;
 
-    const explodedOpacity = smoothstep(0.80, 0.90, p);
+    const explodedOpacity = smoothstep(0.78, 0.90, p);
 
     const opacities = {
       assembled: assembledOpacity,
@@ -69,19 +69,19 @@ export function CanDisassemblyStage({
     };
 
     // Continuous 1:1 physical displacement keyframes
-    const shellLiftProgress = clamp01((p - 0.12) / 0.30);
+    const shellLiftProgress = clamp01((p - 0.10) / 0.28);
     const shellLift = easeInOutCubic(shellLiftProgress) * 140;
 
-    const puEmergeProgress = clamp01((p - 0.16) / 0.22);
+    const puEmergeProgress = clamp01((p - 0.22) / 0.20);
     const puEmerge = (1 - easeOutCubic(puEmergeProgress)) * 10;
-    const puLiftProgress = clamp01((p - 0.46) / 0.20);
-    const puLift = easeInOutCubic(puLiftProgress) * 100;
+    const puLiftProgress = clamp01((p - 0.44) / 0.22);
+    const puLift = easeInOutCubic(puLiftProgress) * 110;
     const puTotalY = puEmerge - puLift;
 
-    const vesselLiftProgress = clamp01((p - 0.38) / 0.18);
-    const vesselLift = easeInOutCubic(vesselLiftProgress) * 6;
+    const vesselLiftProgress = clamp01((p - 0.52) / 0.20);
+    const vesselLift = easeInOutCubic(vesselLiftProgress) * 10;
 
-    const expProgress = clamp01((p - 0.80) / 0.16);
+    const expProgress = clamp01((p - 0.78) / 0.20);
     const expScale = 0.95 + 0.05 * easeOutCubic(expProgress);
     const expOffset = (1 - easeOutCubic(expProgress)) * 14;
 
