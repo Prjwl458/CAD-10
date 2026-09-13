@@ -38,6 +38,8 @@ function CanPage() {
   const scrollTrackRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
   const trackBoundsRef = useRef<{ top: number; height: number }>({ top: 0, height: 0 });
+  const targetProgressRef = useRef<number>(0);
+  const currentProgressRef = useRef<number>(0);
 
   // Update cached geometry on resize to avoid reading DOM properties inside high-frequency scroll events
   const updateTrackBounds = useCallback(() => {
@@ -63,7 +65,7 @@ function CanPage() {
     };
   }, [activeTab, updateTrackBounds]);
 
-  // Derive active stage from continuous scroll progress
+  // Derive active stage indicator from continuous scroll progress
   useEffect(() => {
     let step = 0;
     if (scrollProgress >= 0.82) step = 4;
@@ -72,35 +74,48 @@ function CanPage() {
     else if (scrollProgress >= 0.16) step = 1;
     else step = 0;
 
-    setCurrentStep((prevStep) => {
-      if (prevStep !== step) {
-        setSelectedComponentId(null);
-      }
-      return step;
-    });
+    setCurrentStep(step);
   }, [scrollProgress]);
 
-  // High performance passive scroll listener with 1:1 physical scroll matching
+  // Spring/dampening interpolation loop for continuous, smooth progress scrubbing
+  const animateInterpolation = useCallback(() => {
+    const target = targetProgressRef.current;
+    const current = currentProgressRef.current;
+    const diff = target - current;
+
+    if (Math.abs(diff) < 0.0001) {
+      currentProgressRef.current = target;
+      setScrollProgress(target);
+      rafRef.current = 0;
+      return;
+    }
+
+    // Dampened spring factor (0.18) for fluid physical response
+    const next = current + diff * 0.18;
+    currentProgressRef.current = next;
+    setScrollProgress(Number(next.toFixed(4)));
+
+    rafRef.current = requestAnimationFrame(animateInterpolation);
+  }, []);
+
   const handleScroll = useCallback(() => {
     if (activeTab !== "disassembly") return;
-    if (rafRef.current) return;
 
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = 0;
+    const { top, height } = trackBoundsRef.current;
+    const windowHeight = window.innerHeight;
+    const totalScrollable = height - windowHeight;
 
-      const { top, height } = trackBoundsRef.current;
-      const windowHeight = window.innerHeight;
-      const totalScrollable = height - windowHeight;
+    if (totalScrollable <= 0) return;
 
-      if (totalScrollable <= 0) return;
+    const currentScrolled = window.scrollY - top;
+    const rawProgress = Math.max(0, Math.min(1, currentScrolled / totalScrollable));
 
-      const currentScrolled = window.scrollY - top;
-      const rawProgress = Math.max(0, Math.min(1, currentScrolled / totalScrollable));
-      const roundedProgress = Number(rawProgress.toFixed(4));
+    targetProgressRef.current = rawProgress;
 
-      setScrollProgress((prev) => (Math.abs(prev - roundedProgress) > 0.0001 ? roundedProgress : prev));
-    });
-  }, [activeTab]);
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(animateInterpolation);
+    }
+  }, [activeTab, animateInterpolation]);
 
   useEffect(() => {
     if (activeTab !== "disassembly") return;
@@ -287,10 +302,12 @@ function CanPage() {
                       type="range"
                       min="0"
                       max="1"
-                      step="0.002"
+                      step="0.001"
                       value={scrollProgress}
                       onChange={(e) => {
                         const val = Number(e.target.value);
+                        targetProgressRef.current = val;
+                        currentProgressRef.current = val;
                         setScrollProgress(val);
                         if (scrollTrackRef.current) {
                           updateTrackBounds();
