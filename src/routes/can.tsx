@@ -55,26 +55,34 @@ function CanPage() {
     });
   }, [scrollProgress]);
 
-  // Passive scroll listener bound to the scroll track with RAF throttle
+  // Passive, layout-safe scroll listener bound to the scroll track
   const handleScroll = useCallback(() => {
     if (!scrollTrackRef.current || activeTab !== "disassembly") return;
     if (rafRef.current) return;
 
     rafRef.current = window.requestAnimationFrame(() => {
       rafRef.current = 0;
-      if (!scrollTrackRef.current) return;
-      const rect = scrollTrackRef.current.getBoundingClientRect();
-      const totalScrollable = rect.height - window.innerHeight;
+      const track = scrollTrackRef.current;
+      if (!track) return;
+
+      const trackTop = track.offsetTop;
+      const trackHeight = track.offsetHeight;
+      const windowHeight = window.innerHeight;
+      const totalScrollable = trackHeight - windowHeight;
+
       if (totalScrollable <= 0) return;
 
-      const currentScrolled = -rect.top;
+      const currentScrolled = window.scrollY - trackTop;
       const progress = Math.max(0, Math.min(1, currentScrolled / totalScrollable));
-      setScrollProgress(Number(progress.toFixed(4)));
+      const roundedProgress = Number(progress.toFixed(4));
+
+      setScrollProgress((prev) => (Math.abs(prev - roundedProgress) > 0.0001 ? roundedProgress : prev));
     });
   }, [activeTab]);
 
   useEffect(() => {
     window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // initial sync
     return () => {
       window.removeEventListener("scroll", handleScroll);
       if (rafRef.current) {
@@ -84,36 +92,21 @@ function CanPage() {
     };
   }, [handleScroll]);
 
-  // Scroll smoothly to stage milestone using custom animation (easeInOutCubic)
+  // Scroll smoothly to stage milestone using compositor-driven smooth scroll
   const scrollToStep = (stepIndex: number) => {
     if (!scrollTrackRef.current) return;
-    const rect = scrollTrackRef.current.getBoundingClientRect();
-    const currentScrollY = window.scrollY || window.pageYOffset;
-    const trackTop = rect.top + currentScrollY;
-    const totalScrollable = rect.height - window.innerHeight;
+    const track = scrollTrackRef.current;
+    const trackTop = track.offsetTop;
+    const totalScrollable = track.offsetHeight - window.innerHeight;
 
     const stepTargets = [0.05, 0.26, 0.48, 0.7, 0.94];
     const targetRatio = stepTargets[stepIndex] ?? 0;
     const targetScrollY = trackTop + targetRatio * totalScrollable;
 
-    // Custom smooth scroll using requestAnimationFrame (easeInOutCubic)
-    const duration = 650; // ms
-    const startY = window.scrollY || window.pageYOffset;
-    const startTime = performance.now();
-    const animate = (time: number) => {
-      const elapsed = time - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const ease =
-        progress < 0.5
-          ? 4 * progress * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2; // easeInOutCubic
-      const currentY = startY + (targetScrollY - startY) * ease;
-      window.scrollTo(0, currentY);
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
-    };
-    requestAnimationFrame(animate);
+    window.scrollTo({
+      top: targetScrollY,
+      behavior: "smooth",
+    });
   };
 
   const handleSelectComponent = (id: CanComponentId) => {
@@ -245,20 +238,7 @@ function CanPage() {
 
           {/* Tall Scroll Track */}
           <div ref={scrollTrackRef} className="relative mt-3 min-h-[420vh]">
-            {/* Sticky instrument. Two-part composition on desktop (Can canvas +
-                one information panel); on mobile the information surface docks
-                over the lower edge of the Can instead of stacking beneath it,
-                so the experience never grows into a column of cards. */}
             <div className="sticky top-20 z-10 flex flex-col gap-2.5">
-              {/* ONE instrument frame. The Can canvas and its information panel
-                  are two parts of a single bordered surface — divided, not
-                  separated by a gap — so the disassembly reads as one
-                  composition rather than a diagram sitting beside a card.
-                  The stage keeps its own markup; only its outer chrome is
-                  dropped here so the shared frame provides it. */}
-              {/* ONE unified instrument card frame.
-                  LEFT: Can visualization + hotspots + scrubber slider.
-                  RIGHT: ONE compact contextual information panel. */}
               <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs lg:grid lg:grid-cols-[1.15fr_0.85fr]">
                 {/* LEFT Column: Visual Canvas + Hotspots + Integrated Scrubber */}
                 <div className="flex flex-col justify-between">
@@ -288,10 +268,9 @@ function CanPage() {
                         const val = Number(e.target.value);
                         setScrollProgress(val);
                         if (scrollTrackRef.current) {
-                          const rect = scrollTrackRef.current.getBoundingClientRect();
-                          const currentScrollY = window.scrollY || window.pageYOffset;
-                          const trackTop = rect.top + currentScrollY;
-                          const totalScrollable = rect.height - window.innerHeight;
+                          const track = scrollTrackRef.current;
+                          const trackTop = track.offsetTop;
+                          const totalScrollable = track.offsetHeight - window.innerHeight;
                           window.scrollTo({
                             top: trackTop + val * totalScrollable,
                             behavior: "auto",
