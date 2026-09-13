@@ -25,9 +25,8 @@ export function CanDisassemblyStage({
   const activeStepData: DisassemblyStep = DISASSEMBLY_STEPS[currentStep] ?? DISASSEMBLY_STEPS[0];
 
   /**
-   * Continuous physical keyframe interpolation bound directly to scrollProgress (0..1).
-   * All layers remain mounted continuously in the DOM; positions and opacities are updated
-   * continuously via smoothstep and cubic easing functions to ensure true 1:1 physical motion.
+   * Continuous physical keyframe interpolation with proportional translate3d(x, y, z) spatial offsets.
+   * Component layers separate at relative physical velocities with realistic spatial visual depth.
    */
   const { physicalTransforms, layerOpacities } = useMemo(() => {
     const p = clamp01(scrollProgress);
@@ -68,32 +67,39 @@ export function CanDisassemblyStage({
       exploded: explodedOpacity,
     };
 
-    // Continuous 1:1 physical displacement keyframes
+    // Continuous 1:1 physical displacement keyframes with relative velocities & Z-depth
+    // 1. Outer Shell: Lifts vertically at high velocity (v = 1.4x) with forward Z-offset
     const shellLiftProgress = clamp01((p - 0.10) / 0.28);
-    const shellLift = easeInOutCubic(shellLiftProgress) * 140;
+    const shellLiftY = easeInOutCubic(shellLiftProgress) * -160;
+    const shellLiftZ = easeInOutCubic(shellLiftProgress) * 25; // slightly closer to viewer
+    const shellScale = (1 - 0.02 * (1 - shellOpacity)).toFixed(4);
 
+    // 2. Polyurethane Insulation Core: Medium relative velocity (v = 1.0x) with intermediate Z-offset
     const puEmergeProgress = clamp01((p - 0.22) / 0.20);
-    const puEmerge = (1 - easeOutCubic(puEmergeProgress)) * 10;
+    const puEmergeY = (1 - easeOutCubic(puEmergeProgress)) * 12;
     const puLiftProgress = clamp01((p - 0.44) / 0.22);
-    const puLift = easeInOutCubic(puLiftProgress) * 110;
-    const puTotalY = puEmerge - puLift;
+    const puLiftY = easeInOutCubic(puLiftProgress) * -120;
+    const puTotalY = puEmergeY + puLiftY;
+    const puZ = easeInOutCubic(puLiftProgress) * 10;
 
+    // 3. Stainless Inner Vessel & PCM Sleeve: Stable base anchor velocity (v = 0.3x)
     const vesselLiftProgress = clamp01((p - 0.52) / 0.20);
-    const vesselLift = easeInOutCubic(vesselLiftProgress) * 10;
+    const vesselLiftY = easeInOutCubic(vesselLiftProgress) * -15;
+    const vesselZ = easeInOutCubic(vesselLiftProgress) * -10;
 
+    // 4. Complete Exploded Assembly: Multi-axis 3D spatial fan-out
     const expProgress = clamp01((p - 0.78) / 0.20);
     const expScale = 0.95 + 0.05 * easeOutCubic(expProgress);
-    const expOffset = (1 - easeOutCubic(expProgress)) * 14;
-
-    const shellScale = (1 - 0.03 * (1 - shellOpacity)).toFixed(4);
+    const expOffsetY = (1 - easeOutCubic(expProgress)) * 16;
+    const expOffsetZ = easeOutCubic(expProgress) * 5;
 
     const transforms = {
-      shell: `translate3d(0, ${(-shellLift).toFixed(2)}px, 0) scale3d(${shellScale}, ${shellScale}, 1)`,
-      insulationPu: `translate3d(0, ${puTotalY.toFixed(2)}px, 0)`,
-      vessel: `translate3d(0, ${vesselLift.toFixed(2)}px, 0)`,
-      columns: `translate3d(0, ${vesselLift.toFixed(2)}px, 0)`,
-      exploded: `translate3d(0, ${expOffset.toFixed(2)}px, 0) scale3d(${expScale.toFixed(4)}, ${expScale.toFixed(4)}, 1)`,
-      base: "translate3d(0, 0, 0)",
+      shell: `translate3d(0px, ${shellLiftY.toFixed(2)}px, ${shellLiftZ.toFixed(2)}px) scale3d(${shellScale}, ${shellScale}, 1)`,
+      insulationPu: `translate3d(0px, ${puTotalY.toFixed(2)}px, ${puZ.toFixed(2)}px)`,
+      vessel: `translate3d(0px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px)`,
+      columns: `translate3d(0px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px)`,
+      exploded: `translate3d(0px, ${expOffsetY.toFixed(2)}px, ${expOffsetZ.toFixed(2)}px) scale3d(${expScale.toFixed(4)}, ${expScale.toFixed(4)}, 1)`,
+      base: "translate3d(0px, 0px, 0px)",
     };
 
     return { physicalTransforms: transforms, layerOpacities: opacities };
@@ -106,8 +112,11 @@ export function CanDisassemblyStage({
         className,
       )}
     >
-      {/* Main Visual Viewport — continuous 1:1 scroll scrubbing without element unmounting */}
-      <div className="relative flex aspect-square max-h-[min(46vh,420px)] w-full max-w-[480px] items-center justify-center self-center p-4 sm:max-h-none sm:p-8">
+      {/* Main Visual Viewport with 3D perspective for realistic depth separation */}
+      <div
+        className="relative flex aspect-square max-h-[min(46vh,420px)] w-full max-w-[480px] items-center justify-center self-center p-4 sm:max-h-none sm:p-8"
+        style={{ perspective: "1000px", transformStyle: "preserve-3d" }}
+      >
         {/* Stage 00 — Assembled render */}
         <div
           style={{
