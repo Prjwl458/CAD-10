@@ -1,0 +1,269 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/can/CanStepController.tsx");const useEffect = __vite__cjsImport0_react["useEffect"]; const useState = __vite__cjsImport0_react["useState"];const _jsxDEV = __vite__cjsImport4_react_jsxDevRuntime["jsxDEV"];import __vite__cjsImport0_react from "/node_modules/.vite/deps/react.js?v=1f8e6ace";
+import { Play, Pause, ChevronLeft, ChevronRight, RotateCcw } from "/node_modules/.vite/deps/lucide-react.js?v=bad9c89b";
+import { DISASSEMBLY_STEPS } from "/src/config/can-specifications.ts";
+import { cn } from "/src/lib/utils.ts";
+var _jsxFileName = "D:/Projects/CAD-10/src/components/can/CanStepController.tsx";
+import __vite__cjsImport4_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=1f8e6ace";
+var _s = $RefreshSig$();
+export function CanStepController({ currentStep, onStepChange, className }) {
+	_s();
+	const [isPlaying, setIsPlaying] = useState(false);
+	useEffect(() => {
+		if (!isPlaying) return;
+		const timer = setInterval(() => {
+			onStepChange((currentStep + 1) % DISASSEMBLY_STEPS.length);
+		}, 3800);
+		return () => clearInterval(timer);
+	}, [
+		isPlaying,
+		currentStep,
+		onStepChange
+	]);
+	const canGoPrev = currentStep > 0;
+	const canGoNext = currentStep < DISASSEMBLY_STEPS.length - 1;
+	return /* @__PURE__ */ _jsxDEV("div", {
+		className: cn("rounded-xl border border-border bg-card p-3 shadow-xs", className),
+		"data-tsd-source": "/src/components/can/CanStepController.tsx:29:5",
+		children: [/* @__PURE__ */ _jsxDEV("div", {
+			className: "flex flex-wrap items-center justify-between gap-2",
+			"data-tsd-source": "/src/components/can/CanStepController.tsx:31:7",
+			children: [
+				/* @__PURE__ */ _jsxDEV("div", {
+					className: "flex items-center gap-1.5",
+					"data-tsd-source": "/src/components/can/CanStepController.tsx:32:9",
+					children: [/* @__PURE__ */ _jsxDEV("button", {
+						type: "button",
+						onClick: () => setIsPlaying(!isPlaying),
+						"aria-label": isPlaying ? "Pause auto sequence" : "Play auto sequence",
+						className: cn("inline-flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors", isPlaying ? "border border-primary/40 bg-primary/10 text-primary" : "border border-border bg-surface text-muted-foreground hover:bg-secondary hover:text-foreground"),
+						"data-tsd-source": "/src/components/can/CanStepController.tsx:33:11",
+						children: [isPlaying ? /* @__PURE__ */ _jsxDEV(Pause, {
+							className: "h-3 w-3",
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:44:26"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 44,
+							columnNumber: 26
+						}, this) : /* @__PURE__ */ _jsxDEV(Play, {
+							className: "h-3 w-3",
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:44:58"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 44,
+							columnNumber: 124
+						}, this), /* @__PURE__ */ _jsxDEV("span", {
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:45:13",
+							children: isPlaying ? "Pause" : "Auto Sequence"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 45,
+							columnNumber: 13
+						}, this)]
+					}, void 0, true, {
+						fileName: _jsxFileName,
+						lineNumber: 33,
+						columnNumber: 11
+					}, this), /* @__PURE__ */ _jsxDEV("button", {
+						type: "button",
+						onClick: () => {
+							setIsPlaying(false);
+							onStepChange(0);
+						},
+						title: "Reset to Assembled",
+						className: "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground hover:bg-secondary hover:text-foreground",
+						"data-tsd-source": "/src/components/can/CanStepController.tsx:48:11",
+						children: /* @__PURE__ */ _jsxDEV(RotateCcw, {
+							className: "h-3 w-3",
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:57:13"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 57,
+							columnNumber: 13
+						}, this)
+					}, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 48,
+						columnNumber: 11
+					}, this)]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 32,
+					columnNumber: 9
+				}, this),
+				/* @__PURE__ */ _jsxDEV("div", {
+					className: "numeric flex items-center gap-1 text-xs text-muted-foreground",
+					"data-tsd-source": "/src/components/can/CanStepController.tsx:62:9",
+					children: [
+						/* @__PURE__ */ _jsxDEV("span", {
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:63:11",
+							children: "Stage"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 63,
+							columnNumber: 11
+						}, this),
+						/* @__PURE__ */ _jsxDEV("span", {
+							className: "font-semibold text-foreground",
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:64:11",
+							children: currentStep + 1
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 64,
+							columnNumber: 11
+						}, this),
+						/* @__PURE__ */ _jsxDEV("span", {
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:65:11",
+							children: "/"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 65,
+							columnNumber: 11
+						}, this),
+						/* @__PURE__ */ _jsxDEV("span", {
+							className: "text-muted-foreground",
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:66:11",
+							children: DISASSEMBLY_STEPS.length
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 66,
+							columnNumber: 11
+						}, this)
+					]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 62,
+					columnNumber: 9
+				}, this),
+				/* @__PURE__ */ _jsxDEV("div", {
+					className: "flex items-center gap-1",
+					"data-tsd-source": "/src/components/can/CanStepController.tsx:70:9",
+					children: [/* @__PURE__ */ _jsxDEV("button", {
+						type: "button",
+						disabled: !canGoPrev,
+						onClick: () => {
+							setIsPlaying(false);
+							onStepChange(Math.max(0, currentStep - 1));
+						},
+						"aria-label": "Previous stage",
+						className: "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40",
+						"data-tsd-source": "/src/components/can/CanStepController.tsx:71:11",
+						children: /* @__PURE__ */ _jsxDEV(ChevronLeft, {
+							className: "h-3.5 w-3.5",
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:81:13"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 81,
+							columnNumber: 13
+						}, this)
+					}, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 71,
+						columnNumber: 11
+					}, this), /* @__PURE__ */ _jsxDEV("button", {
+						type: "button",
+						disabled: !canGoNext,
+						onClick: () => {
+							setIsPlaying(false);
+							onStepChange(Math.min(DISASSEMBLY_STEPS.length - 1, currentStep + 1));
+						},
+						"aria-label": "Next stage",
+						className: "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40",
+						"data-tsd-source": "/src/components/can/CanStepController.tsx:83:11",
+						children: /* @__PURE__ */ _jsxDEV(ChevronRight, {
+							className: "h-3.5 w-3.5",
+							"data-tsd-source": "/src/components/can/CanStepController.tsx:93:13"
+						}, void 0, false, {
+							fileName: _jsxFileName,
+							lineNumber: 93,
+							columnNumber: 13
+						}, this)
+					}, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 83,
+						columnNumber: 11
+					}, this)]
+				}, void 0, true, {
+					fileName: _jsxFileName,
+					lineNumber: 70,
+					columnNumber: 9
+				}, this)
+			]
+		}, void 0, true, {
+			fileName: _jsxFileName,
+			lineNumber: 31,
+			columnNumber: 7
+		}, this), /* @__PURE__ */ _jsxDEV("div", {
+			className: "mt-2.5 grid grid-cols-5 gap-1 rounded-lg border border-border bg-surface p-1",
+			"data-tsd-source": "/src/components/can/CanStepController.tsx:99:7",
+			children: DISASSEMBLY_STEPS.map((step) => {
+				const isActive = step.step === currentStep;
+				return /* @__PURE__ */ _jsxDEV("button", {
+					type: "button",
+					onClick: () => {
+						setIsPlaying(false);
+						onStepChange(step.step);
+					},
+					className: cn("group flex min-h-10 flex-col items-center justify-center rounded-md px-1 py-1 text-center transition-all", isActive ? "bg-primary text-primary-foreground shadow-xs font-medium" : "text-muted-foreground hover:bg-secondary hover:text-foreground"),
+					"data-tsd-source": "/src/components/can/CanStepController.tsx:103:13",
+					children: [/* @__PURE__ */ _jsxDEV("span", {
+						className: "numeric text-[10px] opacity-75",
+						"data-tsd-source": "/src/components/can/CanStepController.tsx:117:15",
+						children: step.stageNumber
+					}, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 117,
+						columnNumber: 15
+					}, this), /* @__PURE__ */ _jsxDEV("span", {
+						className: "truncate text-[11px] leading-tight",
+						"data-tsd-source": "/src/components/can/CanStepController.tsx:118:15",
+						children: step.label
+					}, void 0, false, {
+						fileName: _jsxFileName,
+						lineNumber: 118,
+						columnNumber: 15
+					}, this)]
+				}, step.step, true, {
+					fileName: _jsxFileName,
+					lineNumber: 103,
+					columnNumber: 13
+				}, this);
+			})
+		}, void 0, false, {
+			fileName: _jsxFileName,
+			lineNumber: 99,
+			columnNumber: 7
+		}, this)]
+	}, void 0, true, {
+		fileName: _jsxFileName,
+		lineNumber: 29,
+		columnNumber: 5
+	}, this);
+}
+_s(CanStepController, "+Kbn0ieEKHvDJIUzUfA2cWxcq04=");
+_c = CanStepController;
+var _c;
+$RefreshReg$(_c, "CanStepController");
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+import * as __vite_react_currentExports from "/src/components/can/CanStepController.tsx";
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+
+  const currentExports = __vite_react_currentExports;
+  queueMicrotask(() => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/Projects/CAD-10/src/components/can/CanStepController.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/Projects/CAD-10/src/components/can/CanStepController.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+function $RefreshReg$(type, id) { return RefreshRuntime.register(type, "D:/Projects/CAD-10/src/components/can/CanStepController.tsx" + ' ' + id); }
+function $RefreshSig$() { return RefreshRuntime.createSignatureFunctionForTransform(); }
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUE7QUFDQTtBQUNBO0FBQ0E7Ozs7QUFFQSxvQ0FDQSxhQUNBLGNBQ0EsYUFLQTs7Q0FDQTtDQUVBO0VBQ0E7RUFDQTtHQUNBO0VBQ0E7RUFDQTtDQUNBO0VBQUE7RUFBQTtFQUFBO0NBQUE7Q0FFQTtDQUNBO0NBRUEsT0FDQTtFQUFBO0VBQUE7WUFBQSxDQUVBO0dBQUE7R0FBQTthQUFBO0lBQ0E7S0FBQTtLQUFBO2VBQUEsQ0FDQTtNQUNBO01BQ0E7TUFDQTtNQUNBLGNBQ0EsZ0dBQ0EsWUFDQSx3REFDQSxnR0FDQTtNQUNBO2dCQVZBLENBV0E7T0FBQTtPQUFBO01BQW9EOzs7O2lCQUFBO09BQUE7T0FBQTtNQUErQjs7OztnQkFDbkY7T0FBQTtpQkFBaUI7TUFBQTs7OztjQUNqQjs7Ozs7ZUFFQTtNQUNBO01BQ0E7T0FDQTtPQUNBO01BQ0E7TUFDQTtNQUNBO01BQ0E7Z0JBQ0E7T0FBQTtPQUFBO01BQTJDOzs7OztLQUMzQzs7OzthQUNBOzs7Ozs7SUFHQTtLQUFBO0tBQUE7ZUFBQTtNQUNBO09BQUE7aUJBQWU7TUFBQTs7Ozs7TUFDZjtPQUFBO09BQUE7aUJBQXlEO01BQUE7Ozs7O01BQ3pEO09BQUE7aUJBQWU7TUFBQTs7Ozs7TUFDZjtPQUFBO09BQUE7aUJBQWlEO01BQUE7Ozs7O0tBQ2pEOzs7Ozs7SUFHQTtLQUFBO0tBQUE7ZUFBQSxDQUNBO01BQ0E7TUFDQTtNQUNBO09BQ0E7T0FDQTtNQUNBO01BQ0E7TUFDQTtNQUNBO2dCQUNBO09BQUE7T0FBQTtNQUFpRDs7Ozs7S0FDakQ7Ozs7ZUFDQTtNQUNBO01BQ0E7TUFDQTtPQUNBO09BQ0E7TUFDQTtNQUNBO01BQ0E7TUFDQTtnQkFDQTtPQUFBO09BQUE7TUFBa0Q7Ozs7O0tBQ2xEOzs7O2FBQ0E7Ozs7OztHQUNBOzs7OztZQUdBO0dBQUE7R0FBQTthQUNBO0lBQ0E7SUFDQSxPQUNBO0tBRUE7S0FDQTtNQUNBO01BQ0E7S0FDQTtLQUNBLGNBQ0EsNEdBQ0EsV0FDQSw2REFDQSxnRUFDQTtLQUNBO2VBYkEsQ0FjQTtNQUFBO01BQUE7Z0JBQThEO0tBQUE7Ozs7ZUFDOUQ7TUFBQTtNQUFBO2dCQUFrRTtLQUFBOzs7O2FBQ2xFO09BZkE7Ozs7V0FlQTtHQUVBO0VBQ0E7Ozs7VUFDQTs7Ozs7O0FBRUEiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIkNhblN0ZXBDb250cm9sbGVyLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VFZmZlY3QsIHVzZVN0YXRlIH0gZnJvbSBcInJlYWN0XCI7XG5pbXBvcnQgeyBQbGF5LCBQYXVzZSwgQ2hldnJvbkxlZnQsIENoZXZyb25SaWdodCwgUm90YXRlQ2N3IH0gZnJvbSBcImx1Y2lkZS1yZWFjdFwiO1xuaW1wb3J0IHsgRElTQVNTRU1CTFlfU1RFUFMgfSBmcm9tIFwiQC9jb25maWcvY2FuLXNwZWNpZmljYXRpb25zXCI7XG5pbXBvcnQgeyBjbiB9IGZyb20gXCJAL2xpYi91dGlsc1wiO1xuXG5leHBvcnQgZnVuY3Rpb24gQ2FuU3RlcENvbnRyb2xsZXIoe1xuICBjdXJyZW50U3RlcCxcbiAgb25TdGVwQ2hhbmdlLFxuICBjbGFzc05hbWUsXG59OiB7XG4gIGN1cnJlbnRTdGVwOiBudW1iZXI7XG4gIG9uU3RlcENoYW5nZTogKHN0ZXA6IG51bWJlcikgPT4gdm9pZDtcbiAgY2xhc3NOYW1lPzogc3RyaW5nO1xufSkge1xuICBjb25zdCBbaXNQbGF5aW5nLCBzZXRJc1BsYXlpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuXG4gIHVzZUVmZmVjdCgoKSA9PiB7XG4gICAgaWYgKCFpc1BsYXlpbmcpIHJldHVybjtcbiAgICBjb25zdCB0aW1lciA9IHNldEludGVydmFsKCgpID0+IHtcbiAgICAgIG9uU3RlcENoYW5nZSgoY3VycmVudFN0ZXAgKyAxKSAlIERJU0FTU0VNQkxZX1NURVBTLmxlbmd0aCk7XG4gICAgfSwgMzgwMCk7XG4gICAgcmV0dXJuICgpID0+IGNsZWFySW50ZXJ2YWwodGltZXIpO1xuICB9LCBbaXNQbGF5aW5nLCBjdXJyZW50U3RlcCwgb25TdGVwQ2hhbmdlXSk7XG5cbiAgY29uc3QgY2FuR29QcmV2ID0gY3VycmVudFN0ZXAgPiAwO1xuICBjb25zdCBjYW5Hb05leHQgPSBjdXJyZW50U3RlcCA8IERJU0FTU0VNQkxZX1NURVBTLmxlbmd0aCAtIDE7XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT17Y24oXCJyb3VuZGVkLXhsIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLWNhcmQgcC0zIHNoYWRvdy14c1wiLCBjbGFzc05hbWUpfT5cbiAgICAgIHsvKiBDb250cm9scyBCYXIgKi99XG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggZmxleC13cmFwIGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gZ2FwLTJcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41XCI+XG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRJc1BsYXlpbmcoIWlzUGxheWluZyl9XG4gICAgICAgICAgICBhcmlhLWxhYmVsPXtpc1BsYXlpbmcgPyBcIlBhdXNlIGF1dG8gc2VxdWVuY2VcIiA6IFwiUGxheSBhdXRvIHNlcXVlbmNlXCJ9XG4gICAgICAgICAgICBjbGFzc05hbWU9e2NuKFxuICAgICAgICAgICAgICBcImlubGluZS1mbGV4IGgtNyBpdGVtcy1jZW50ZXIgZ2FwLTEuNSByb3VuZGVkLWxnIHB4LTIuNSB0ZXh0LXhzIGZvbnQtbWVkaXVtIHRyYW5zaXRpb24tY29sb3JzXCIsXG4gICAgICAgICAgICAgIGlzUGxheWluZ1xuICAgICAgICAgICAgICAgID8gXCJib3JkZXIgYm9yZGVyLXByaW1hcnkvNDAgYmctcHJpbWFyeS8xMCB0ZXh0LXByaW1hcnlcIlxuICAgICAgICAgICAgICAgIDogXCJib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1zdXJmYWNlIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1zZWNvbmRhcnkgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kXCIsXG4gICAgICAgICAgICApfVxuICAgICAgICAgID5cbiAgICAgICAgICAgIHtpc1BsYXlpbmcgPyA8UGF1c2UgY2xhc3NOYW1lPVwiaC0zIHctM1wiIC8+IDogPFBsYXkgY2xhc3NOYW1lPVwiaC0zIHctM1wiIC8+fVxuICAgICAgICAgICAgPHNwYW4+e2lzUGxheWluZyA/IFwiUGF1c2VcIiA6IFwiQXV0byBTZXF1ZW5jZVwifTwvc3Bhbj5cbiAgICAgICAgICA8L2J1dHRvbj5cblxuICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgb25DbGljaz17KCkgPT4ge1xuICAgICAgICAgICAgICBzZXRJc1BsYXlpbmcoZmFsc2UpO1xuICAgICAgICAgICAgICBvblN0ZXBDaGFuZ2UoMCk7XG4gICAgICAgICAgICB9fVxuICAgICAgICAgICAgdGl0bGU9XCJSZXNldCB0byBBc3NlbWJsZWRcIlxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiaW5saW5lLWZsZXggaC03IHctNyBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgcm91bmRlZC1sZyBib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1zdXJmYWNlIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1zZWNvbmRhcnkgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kXCJcbiAgICAgICAgICA+XG4gICAgICAgICAgICA8Um90YXRlQ2N3IGNsYXNzTmFtZT1cImgtMyB3LTNcIiAvPlxuICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICA8L2Rpdj5cblxuICAgICAgICB7LyogU3RlcCBJbmRpY2F0b3IgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibnVtZXJpYyBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSB0ZXh0LXhzIHRleHQtbXV0ZWQtZm9yZWdyb3VuZFwiPlxuICAgICAgICAgIDxzcGFuPlN0YWdlPC9zcGFuPlxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImZvbnQtc2VtaWJvbGQgdGV4dC1mb3JlZ3JvdW5kXCI+e2N1cnJlbnRTdGVwICsgMX08L3NwYW4+XG4gICAgICAgICAgPHNwYW4+Lzwvc3Bhbj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LW11dGVkLWZvcmVncm91bmRcIj57RElTQVNTRU1CTFlfU1RFUFMubGVuZ3RofTwvc3Bhbj5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIFByZXZpb3VzIC8gTmV4dCBTdGVwcGVyICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggaXRlbXMtY2VudGVyIGdhcC0xXCI+XG4gICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICBkaXNhYmxlZD17IWNhbkdvUHJldn1cbiAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHtcbiAgICAgICAgICAgICAgc2V0SXNQbGF5aW5nKGZhbHNlKTtcbiAgICAgICAgICAgICAgb25TdGVwQ2hhbmdlKE1hdGgubWF4KDAsIGN1cnJlbnRTdGVwIC0gMSkpO1xuICAgICAgICAgICAgfX1cbiAgICAgICAgICAgIGFyaWEtbGFiZWw9XCJQcmV2aW91cyBzdGFnZVwiXG4gICAgICAgICAgICBjbGFzc05hbWU9XCJpbmxpbmUtZmxleCBoLTcgdy03IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciByb3VuZGVkLWxnIGJvcmRlciBib3JkZXItYm9yZGVyIGJnLXN1cmZhY2UgdGV4dC1tdXRlZC1mb3JlZ3JvdW5kIHRyYW5zaXRpb24tY29sb3JzIGhvdmVyOmJnLXNlY29uZGFyeSBob3Zlcjp0ZXh0LWZvcmVncm91bmQgZGlzYWJsZWQ6b3BhY2l0eS00MFwiXG4gICAgICAgICAgPlxuICAgICAgICAgICAgPENoZXZyb25MZWZ0IGNsYXNzTmFtZT1cImgtMy41IHctMy41XCIgLz5cbiAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcbiAgICAgICAgICAgIGRpc2FibGVkPXshY2FuR29OZXh0fVxuICAgICAgICAgICAgb25DbGljaz17KCkgPT4ge1xuICAgICAgICAgICAgICBzZXRJc1BsYXlpbmcoZmFsc2UpO1xuICAgICAgICAgICAgICBvblN0ZXBDaGFuZ2UoTWF0aC5taW4oRElTQVNTRU1CTFlfU1RFUFMubGVuZ3RoIC0gMSwgY3VycmVudFN0ZXAgKyAxKSk7XG4gICAgICAgICAgICB9fVxuICAgICAgICAgICAgYXJpYS1sYWJlbD1cIk5leHQgc3RhZ2VcIlxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiaW5saW5lLWZsZXggaC03IHctNyBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgcm91bmRlZC1sZyBib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1zdXJmYWNlIHRleHQtbXV0ZWQtZm9yZWdyb3VuZCB0cmFuc2l0aW9uLWNvbG9ycyBob3ZlcjpiZy1zZWNvbmRhcnkgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kIGRpc2FibGVkOm9wYWNpdHktNDBcIlxuICAgICAgICAgID5cbiAgICAgICAgICAgIDxDaGV2cm9uUmlnaHQgY2xhc3NOYW1lPVwiaC0zLjUgdy0zLjVcIiAvPlxuICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvZGl2PlxuXG4gICAgICB7LyogU2VnbWVudGVkIFN0ZXBwZXIgVGFicyAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwibXQtMi41IGdyaWQgZ3JpZC1jb2xzLTUgZ2FwLTEgcm91bmRlZC1sZyBib3JkZXIgYm9yZGVyLWJvcmRlciBiZy1zdXJmYWNlIHAtMVwiPlxuICAgICAgICB7RElTQVNTRU1CTFlfU1RFUFMubWFwKChzdGVwKSA9PiB7XG4gICAgICAgICAgY29uc3QgaXNBY3RpdmUgPSBzdGVwLnN0ZXAgPT09IGN1cnJlbnRTdGVwO1xuICAgICAgICAgIHJldHVybiAoXG4gICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgIGtleT17c3RlcC5zdGVwfVxuICAgICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcbiAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4ge1xuICAgICAgICAgICAgICAgIHNldElzUGxheWluZyhmYWxzZSk7XG4gICAgICAgICAgICAgICAgb25TdGVwQ2hhbmdlKHN0ZXAuc3RlcCk7XG4gICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgIGNsYXNzTmFtZT17Y24oXG4gICAgICAgICAgICAgICAgXCJncm91cCBmbGV4IG1pbi1oLTEwIGZsZXgtY29sIGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciByb3VuZGVkLW1kIHB4LTEgcHktMSB0ZXh0LWNlbnRlciB0cmFuc2l0aW9uLWFsbFwiLFxuICAgICAgICAgICAgICAgIGlzQWN0aXZlXG4gICAgICAgICAgICAgICAgICA/IFwiYmctcHJpbWFyeSB0ZXh0LXByaW1hcnktZm9yZWdyb3VuZCBzaGFkb3cteHMgZm9udC1tZWRpdW1cIlxuICAgICAgICAgICAgICAgICAgOiBcInRleHQtbXV0ZWQtZm9yZWdyb3VuZCBob3ZlcjpiZy1zZWNvbmRhcnkgaG92ZXI6dGV4dC1mb3JlZ3JvdW5kXCIsXG4gICAgICAgICAgICAgICl9XG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cIm51bWVyaWMgdGV4dC1bMTBweF0gb3BhY2l0eS03NVwiPntzdGVwLnN0YWdlTnVtYmVyfTwvc3Bhbj5cbiAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidHJ1bmNhdGUgdGV4dC1bMTFweF0gbGVhZGluZy10aWdodFwiPntzdGVwLmxhYmVsfTwvc3Bhbj5cbiAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICk7XG4gICAgICAgIH0pfVxuICAgICAgPC9kaXY+XG4gICAgPC9kaXY+XG4gICk7XG59XG4iXSwiZmlsZSI6IkQ6L1Byb2plY3RzL0NBRC0xMC9zcmMvY29tcG9uZW50cy9jYW4vQ2FuU3RlcENvbnRyb2xsZXIudHN4In0=

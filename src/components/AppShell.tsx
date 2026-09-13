@@ -1,0 +1,252 @@
+import { Link, useRouterState } from "@tanstack/react-router";
+import {
+  Gauge,
+  ScanLine,
+  Cylinder,
+  Wrench,
+  BookOpen,
+  Users,
+  LogIn,
+  Menu,
+  type LucideIcon,
+} from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import { useSettings } from "@/hooks/useStore";
+import { store } from "@/services/storage";
+import { DemoBadge } from "./ui-kit";
+
+export type NavItem = {
+  to: string;
+  label: string;
+  shortLabel: string;
+  icon: LucideIcon;
+  primary?: boolean;
+};
+
+// Direct items shown in the mobile bottom bar
+const DIRECT_NAV: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard", shortLabel: "Dashboard", icon: Gauge },
+  { to: "/pcm", label: "CAD Scan", shortLabel: "PCM", icon: ScanLine, primary: true },
+  { to: "/can", label: "Can Specs", shortLabel: "Can", icon: Cylinder },
+  { to: "/maintenance", label: "Maintenance", shortLabel: "Maint.", icon: Wrench },
+];
+
+// Items shown in the mobile More menu
+const MORE_NAV: NavItem[] = [
+  { to: "/team", label: "Our Team", shortLabel: "Team", icon: Users },
+  { to: "/help", label: "Help", shortLabel: "Help", icon: BookOpen },
+  { to: "/login", label: "Sign In", shortLabel: "Sign In", icon: LogIn },
+];
+
+// All navigation items for the desktop sidebar
+const DESKTOP_NAV: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard", shortLabel: "Dashboard", icon: Gauge },
+  { to: "/pcm", label: "CAD Scan", shortLabel: "PCM", icon: ScanLine, primary: true },
+  { to: "/can", label: "Can Specs", shortLabel: "Can", icon: Cylinder },
+  { to: "/maintenance", label: "Maintenance", shortLabel: "Maint.", icon: Wrench },
+  { to: "/help", label: "Help", shortLabel: "Help", icon: BookOpen },
+  { to: "/team", label: "Our Team", shortLabel: "Team", icon: Users },
+  { to: "/login", label: "Sign In", shortLabel: "Sign In", icon: LogIn },
+];
+
+export function AppShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const settings = useSettings();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const isMoreActive =
+    pathname.startsWith("/team") || pathname.startsWith("/help") || pathname.startsWith("/login");
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Desktop sidebar */}
+      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-sidebar-border bg-sidebar px-3 py-5 lg:flex">
+        <Link to="/" className="px-2">
+          <p className="text-lg font-semibold tracking-tight text-sidebar-foreground">CAD-10</p>
+          <p className="text-xs text-muted-foreground">PCM Milk Chilling Can</p>
+        </Link>
+        <nav className="mt-6 flex flex-1 flex-col gap-1">
+          {DESKTOP_NAV.map((item) => {
+            const active =
+              item.to === "/dashboard"
+                ? pathname === "/" || pathname === "/dashboard"
+                : pathname.startsWith(item.to);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-sidebar-accent text-sidebar-primary font-semibold"
+                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
+                  item.primary && !active && "text-primary",
+                )}
+              >
+                <item.icon className="h-4.5 w-4.5 shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <button
+          type="button"
+          onClick={() => store.saveSettings({ ...settings, demoMode: !settings.demoMode })}
+          className="mt-2 rounded-xl border border-border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-secondary"
+        >
+          Demo sensor feed:{" "}
+          <span className="font-semibold text-foreground">{settings.demoMode ? "ON" : "OFF"}</span>
+        </button>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="lg:pl-60">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-base font-semibold sm:text-xl">{title}</h1>
+              {subtitle ? (
+                <p className="truncate text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
+              ) : null}
+            </div>
+            {settings.demoMode ? (
+              <div className="shrink-0">
+                <DemoBadge />
+              </div>
+            ) : null}
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-5xl px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 lg:pb-10">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile More-menu backdrop overlay */}
+      {moreOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity lg:hidden"
+          onClick={() => setMoreOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile More-menu dropdown card */}
+      {moreOpen && (
+        <div
+          id="mobile-more-menu"
+          role="dialog"
+          aria-label="More navigation options"
+          className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 rounded-2xl border border-border bg-card p-2 shadow-2xl animate-in fade-in-0 zoom-in-95 lg:hidden"
+        >
+          <div className="flex flex-col gap-1">
+            {MORE_NAV.map((item) => {
+              const active = pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMoreOpen(false)}
+                  className={cn(
+                    "flex min-h-12 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-primary font-semibold"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+            <div className="my-1 border-t border-border" />
+            <button
+              type="button"
+              onClick={() => {
+                store.saveSettings({ ...settings, demoMode: !settings.demoMode });
+                setMoreOpen(false);
+              }}
+              className="flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <span>Demo sensor feed</span>
+              <span
+                className={cn(
+                  "rounded-md px-2 py-0.5 text-xs font-semibold",
+                  settings.demoMode ? "bg-primary/10 text-primary" : "text-muted-foreground",
+                )}
+              >
+                {settings.demoMode ? "ON" : "OFF"}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile bottom navigation bar */}
+      <nav
+        aria-label="Mobile bottom navigation"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-surface/95 backdrop-blur pb-[env(safe-area-inset-bottom)] lg:hidden"
+      >
+        {DIRECT_NAV.map((item) => {
+          const active =
+            item.to === "/dashboard"
+              ? pathname === "/" || pathname === "/dashboard"
+              : pathname.startsWith(item.to);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => setMoreOpen(false)}
+              className={cn(
+                "flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-center transition-colors",
+                active
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-lg transition-all",
+                  item.primary && !active && "bg-primary/10 text-primary",
+                  item.primary && active && "bg-primary text-primary-foreground shadow-sm",
+                )}
+              >
+                <item.icon className="h-4.5 w-4.5 shrink-0" />
+              </div>
+              <span className="w-full truncate text-[10px] leading-tight sm:text-[11px]">
+                {item.shortLabel ?? item.label}
+              </span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          aria-label="Open more navigation"
+          aria-expanded={moreOpen}
+          aria-controls="mobile-more-menu"
+          onClick={() => setMoreOpen((open) => !open)}
+          className={cn(
+            "flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-center transition-colors",
+            isMoreActive || moreOpen
+              ? "text-primary font-semibold"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg">
+            <Menu className="h-4.5 w-4.5 shrink-0" />
+          </div>
+          <span className="w-full truncate text-[10px] leading-tight sm:text-[11px]">More</span>
+        </button>
+      </nav>
+    </div>
+  );
+}
