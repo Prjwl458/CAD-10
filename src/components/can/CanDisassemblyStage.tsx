@@ -24,11 +24,7 @@ export function CanDisassemblyStage({
 }) {
   const activeStepData: DisassemblyStep = DISASSEMBLY_STEPS[currentStep] ?? DISASSEMBLY_STEPS[0];
 
-  /**
-   * Continuous physical keyframe interpolation with high-friction deceleration.
-   * Remaps scroll progress approaching 1.0 using a quintic ease-out curve (1 - (1 - t)^5)
-   * so all layer velocities glide smoothly into their final resting positions without snapping.
-   */
+  /** Continuous physical keyframe interpolation. */
   const { physicalTransforms, layerOpacities } = useMemo(() => {
     const p = clamp01(scrollProgress);
 
@@ -38,35 +34,25 @@ export function CanDisassemblyStage({
       return t * t * (3 - 2 * t);
     };
 
-    const easeInOutCubic = (t: number) =>
-      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-    // Quintic Ease-Out for ultra-smooth physical glide as p -> 1.0
-    const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
+    // Components stay mounted throughout. Their visibility overlaps their
+    // movement, preventing an invisible layer from arriving late in view.
+    const assembledOpacity = 1 - smoothstep(0.04, 0.18, p);
 
-    // Balanced opacity envelopes ensuring steady visual mass across [0.0, 1.0]
-    // 1. Assembled stage (0.00 -> 0.22)
-    const assembledOpacity = 1 - smoothstep(0.06, 0.22, p);
+    const shellIn = smoothstep(0.04, 0.18, p);
+    const shellOut = 1 - smoothstep(0.52, 0.7, p);
+    const shellOpacity = easeOutCubic(shellIn) * easeOutCubic(shellOut);
 
-    // 2. Outer shell stage (0.12 -> 0.50)
-    const shellIn = smoothstep(0.08, 0.22, p);
-    const shellOut = 1 - smoothstep(0.42, 0.54, p);
-    const shellOpacity = shellIn * shellOut;
+    const puIn = smoothstep(0.18, 0.36, p);
+    const puOut = 1 - smoothstep(0.72, 0.88, p);
+    const puOpacity = easeOutCubic(puIn) * easeOutCubic(puOut);
 
-    // 3. PU insulation stage (0.38 -> 0.76)
-    const puIn = smoothstep(0.36, 0.48, p);
-    const puOut = 1 - smoothstep(0.68, 0.78, p);
-    const puOpacity = puIn * puOut;
+    const vesselIn = smoothstep(0.32, 0.5, p);
+    const vesselOut = 1 - smoothstep(0.84, 0.96, p);
+    const vesselOpacity = easeOutCubic(vesselIn) * easeOutCubic(vesselOut);
 
-    // 4. Inner vessel stage (0.60 -> 0.92)
-    const vesselIn = smoothstep(0.58, 0.72, p);
-    const vesselOut = 1 - smoothstep(0.86, 0.94, p);
-    const vesselOpacity = vesselIn * vesselOut;
-
-    // 5. Complete exploded stage (0.72 -> 1.00) with gentle arrival
-    const explodedOpacity = smoothstep(0.72, 0.90, p);
+    const explodedOpacity = easeOutCubic(smoothstep(0.82, 0.98, p));
 
     const opacities = {
       assembled: assembledOpacity,
@@ -76,38 +62,47 @@ export function CanDisassemblyStage({
       exploded: explodedOpacity,
     };
 
-    // Deterministic multi-axis 3D spatial transformations
+    // Restrained component offsets preserve a stable centre of mass.  The
+    // layers separate around the can rather than reading as full-height panels
+    // travelling up the viewport.
     // Outer Shell
-    const shellLiftProgress = smoothstep(0.10, 0.48, p);
-    const shellLiftY = easeInOutCubic(shellLiftProgress) * -170;
-    const shellLiftZ = easeInOutCubic(shellLiftProgress) * 30;
+    const shellLiftProgress = smoothstep(0.08, 0.5, p);
+    const shellLiftX = easeOutCubic(shellLiftProgress) * -10;
+    const shellLiftY = easeOutCubic(shellLiftProgress) * -48;
+    const shellLiftZ = easeOutCubic(shellLiftProgress) * 12;
+    const shellRotation = easeOutCubic(shellLiftProgress) * -0.8;
     const shellScale = (1.0 - 0.03 * (1.0 - shellOpacity)).toFixed(4);
 
     // PU Core
-    const puEmergeProgress = smoothstep(0.22, 0.44, p);
-    const puEmergeY = (1 - easeOutCubic(puEmergeProgress)) * 14;
-    const puLiftProgress = smoothstep(0.42, 0.74, p);
-    const puLiftY = easeInOutCubic(puLiftProgress) * -130;
+    const puEmergeProgress = smoothstep(0.18, 0.42, p);
+    const puEmergeY = (1 - easeOutCubic(puEmergeProgress)) * 6;
+    const puLiftProgress = smoothstep(0.38, 0.76, p);
+    const puLiftX = easeOutCubic(puLiftProgress) * 8; // eased lateral movement
+    const puLiftY = easeOutCubic(puLiftProgress) * -26;
     const puTotalY = puEmergeY + puLiftY;
-    const puZ = easeInOutCubic(puLiftProgress) * 12;
+    const puZ = easeOutCubic(puLiftProgress) * 8;
+    const puRotation = easeOutCubic(puLiftProgress) * 0.275; // reduced rotation
 
     // Stainless Inner Vessel
-    const vesselLiftProgress = smoothstep(0.58, 0.88, p);
-    const vesselLiftY = easeInOutCubic(vesselLiftProgress) * -20;
-    const vesselZ = easeInOutCubic(vesselLiftProgress) * -12;
+    const vesselLiftProgress = smoothstep(0.32, 0.88, p);
+    const vesselLiftX = easeOutCubic(vesselLiftProgress) * 3;
+    const vesselLiftY = easeOutCubic(vesselLiftProgress) * 8;
+    const vesselZ = easeOutCubic(vesselLiftProgress) * -4;
+    const vesselRotation = easeOutCubic(vesselLiftProgress) * -0.15; // reduced rotation
 
-    // Exploded View — High-friction quintic ease-out deceleration into final rest position
-    const expRawProgress = smoothstep(0.72, 1.00, p);
-    const expEased = easeOutQuint(expRawProgress);
-    const expScale = 0.94 + 0.06 * expEased;
-    const expOffsetY = (1 - expEased) * 20;
-    const expOffsetZ = expEased * 10;
+    // The final artwork takes over with the same C1 interpolation used by the
+    // physical layers, avoiding an over-eased final approach or visible snap.
+    const expProgress = smoothstep(0.82, 1.0, p);
+    const expProgressEased = easeOutCubic(expProgress);
+    const expScale = 0.94 + 0.06 * expProgressEased; // use eased progress for scale
+    const expOffsetY = (1 - expProgressEased) * 20;
+    const expOffsetZ = expProgressEased * 10;
 
     const transforms = {
-      shell: `translate3d(0px, ${shellLiftY.toFixed(2)}px, ${shellLiftZ.toFixed(2)}px) scale3d(${shellScale}, ${shellScale}, 1)`,
-      insulationPu: `translate3d(0px, ${puTotalY.toFixed(2)}px, ${puZ.toFixed(2)}px)`,
-      vessel: `translate3d(0px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px)`,
-      columns: `translate3d(0px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px)`,
+      shell: `translate3d(${shellLiftX.toFixed(2)}px, ${shellLiftY.toFixed(2)}px, ${shellLiftZ.toFixed(2)}px) rotateZ(${shellRotation.toFixed(2)}deg) scale3d(${shellScale}, ${shellScale}, 1)`,
+      insulationPu: `translate3d(${puLiftX.toFixed(2)}px, ${puTotalY.toFixed(2)}px, ${puZ.toFixed(2)}px) rotateZ(${puRotation.toFixed(2)}deg)`,
+      vessel: `translate3d(${vesselLiftX.toFixed(2)}px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px) rotateZ(${vesselRotation.toFixed(2)}deg)`,
+      columns: `translate3d(${vesselLiftX.toFixed(2)}px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px) rotateZ(${vesselRotation.toFixed(2)}deg)`,
       exploded: `translate3d(0px, ${expOffsetY.toFixed(2)}px, ${expOffsetZ.toFixed(2)}px) scale3d(${expScale.toFixed(4)}, ${expScale.toFixed(4)}, 1)`,
       base: "translate3d(0px, 0px, 0px)",
     };
