@@ -77,7 +77,7 @@ function CanPage() {
     setCurrentStep(step);
   }, [scrollProgress]);
 
-  // Dampened fluid interpolation loop for continuous, smooth physical progress scrubbing
+  // Precise fluid interpolation loop: settles immediately without drifting or snapping
   const animateInterpolation = useCallback(() => {
     const target = targetProgressRef.current;
     const current = currentProgressRef.current;
@@ -90,8 +90,8 @@ function CanPage() {
       return;
     }
 
-    // Dampened factor for physical stability and responsiveness
-    const next = current + diff * 0.22;
+    // Dampened factor for physical stability and immediate lock-in when scrolling stops
+    const next = current + diff * 0.25;
     currentProgressRef.current = next;
     setScrollProgress(Number(next.toFixed(4)));
 
