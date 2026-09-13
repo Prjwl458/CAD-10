@@ -36,31 +36,29 @@ export function CanDisassemblyStage({
   const { physicalTransforms, layerOpacities } = useMemo(() => {
     const p = clamp01(scrollProgress);
 
-    // Smoothstep: C1 continuous S-curve with zero derivative at endpoints
+    // Smoothstep for continuous transition envelopes
     const smoothstep = (edge0: number, edge1: number, x: number) => {
       const t = clamp01((x - edge0) / (edge1 - edge0));
       return t * t * (3 - 2 * t);
     };
 
-    // Cubic ease-in-out for organic physical acceleration & deceleration
     const easeInOutCubic = (t: number) =>
       t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-    // Ease-out cubic for settling
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-    // Smooth C1 Opacity Envelopes
-    const assembledOpacity = 1 - smoothstep(0.12, 0.18, p);
+    // Continuous opacity envelopes across disassembly stages
+    const assembledOpacity = 1 - smoothstep(0.12, 0.20, p);
 
-    const shellIn = smoothstep(0.12, 0.18, p);
-    const shellOut = 1 - smoothstep(0.30, 0.38, p);
+    const shellIn = smoothstep(0.12, 0.20, p);
+    const shellOut = 1 - smoothstep(0.32, 0.40, p);
     const shellOpacity = shellIn * shellOut;
 
-    const puIn = smoothstep(0.14, 0.24, p);
-    const puOut = 1 - smoothstep(0.54, 0.64, p);
+    const puIn = smoothstep(0.16, 0.26, p);
+    const puOut = 1 - smoothstep(0.56, 0.66, p);
     const puOpacity = puIn * puOut;
 
-    const vesselIn = smoothstep(0.48, 0.58, p);
+    const vesselIn = smoothstep(0.48, 0.60, p);
     const vesselOut = 1 - smoothstep(0.80, 0.88, p);
     const vesselOpacity = vesselIn * vesselOut;
 
@@ -74,33 +72,30 @@ export function CanDisassemblyStage({
       exploded: explodedOpacity,
     };
 
-    // Continuous 3D spatial transforms
-    const shellLiftProgress = clamp01((p - 0.12) / 0.30);
-    const shellLift = easeInOutCubic(shellLiftProgress) * 130;
+    // 1:1 Continuous physical displacement calculations
+    const shellLiftProgress = clamp01((p - 0.12) / 0.28);
+    const shellLift = easeInOutCubic(shellLiftProgress) * 140;
 
-    const puEmergeProgress = clamp01((p - 0.18) / 0.18);
-    const puEmerge = (1 - easeOutCubic(puEmergeProgress)) * 8;
-    const puBlend = smoothstep(0.36, 0.48, p);
-    const puEmergeAdjusted = puEmerge * (1 - puBlend);
+    const puEmergeProgress = clamp01((p - 0.16) / 0.20);
+    const puEmerge = (1 - easeOutCubic(puEmergeProgress)) * 10;
+    const puLiftProgress = clamp01((p - 0.46) / 0.18);
+    const puLift = easeInOutCubic(puLiftProgress) * 100;
+    const puTotalY = puEmerge - puLift;
 
-    const puLiftProgress = clamp01((p - 0.48) / 0.16);
-    const puLift = easeInOutCubic(puLiftProgress) * 90;
-    const puTotalY = puEmergeAdjusted - puLift;
+    const vesselLiftProgress = clamp01((p - 0.38) / 0.16);
+    const vesselLift = easeInOutCubic(vesselLiftProgress) * 6;
 
-    const vesselPreStartProgress = clamp01((p - 0.36) / 0.12);
-    const vesselPreStart = easeInOutCubic(vesselPreStartProgress) * 5;
+    const expProgress = clamp01((p - 0.80) / 0.14);
+    const expScale = 0.95 + 0.05 * easeOutCubic(expProgress);
+    const expOffset = (1 - easeOutCubic(expProgress)) * 14;
 
-    const expProgress = clamp01((p - 0.80) / 0.12);
-    const expScale = 0.96 + 0.04 * easeOutCubic(expProgress);
-    const expOffset = (1 - easeOutCubic(expProgress)) * 12;
-
-    const shellScale = (1 - 0.04 * (1 - shellOpacity)).toFixed(4);
+    const shellScale = (1 - 0.03 * (1 - shellOpacity)).toFixed(4);
 
     const transforms = {
-      shell: `translate3d(0, ${-shellLift.toFixed(2)}px, 0) scale3d(${shellScale}, ${shellScale}, 1)`,
+      shell: `translate3d(0, ${(-shellLift).toFixed(2)}px, 0) scale3d(${shellScale}, ${shellScale}, 1)`,
       insulationPu: `translate3d(0, ${puTotalY.toFixed(2)}px, 0)`,
-      vessel: `translate3d(0, ${vesselPreStart.toFixed(2)}px, 0)`,
-      columns: `translate3d(0, ${vesselPreStart.toFixed(2)}px, 0)`,
+      vessel: `translate3d(0, ${vesselLift.toFixed(2)}px, 0)`,
+      columns: `translate3d(0, ${vesselLift.toFixed(2)}px, 0)`,
       exploded: `translate3d(0, ${expOffset.toFixed(2)}px, 0) scale3d(${expScale.toFixed(4)}, ${expScale.toFixed(4)}, 1)`,
       base: "translate3d(0, 0, 0)",
     };
@@ -115,7 +110,7 @@ export function CanDisassemblyStage({
         className,
       )}
     >
-      {/* Main Visual Viewport — continuous scroll-driven layered disassembly */}
+      {/* Main Visual Viewport — continuous 1:1 scroll-driven layered disassembly */}
       <div className="relative flex aspect-square max-h-[min(46vh,420px)] w-full max-w-[480px] items-center justify-center self-center p-4 sm:max-h-none sm:p-8">
         {/* Stage 00 — Assembled render */}
         {layerOpacities.assembled > 0 && (
