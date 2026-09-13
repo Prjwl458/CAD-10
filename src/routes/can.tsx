@@ -77,7 +77,7 @@ function CanPage() {
     setCurrentStep(step);
   }, [scrollProgress]);
 
-  // Precise fluid interpolation loop: settles immediately without drifting or snapping
+  // Precise fluid interpolation loop: glides into final resting point smoothly as target -> 1.0
   const animateInterpolation = useCallback(() => {
     const target = targetProgressRef.current;
     const current = currentProgressRef.current;
@@ -90,8 +90,9 @@ function CanPage() {
       return;
     }
 
-    // Dampened factor for physical stability and immediate lock-in when scrolling stops
-    const next = current + diff * 0.25;
+    // Adaptive damping factor: smoother deceleration near extreme bounds (0.0 or 1.0)
+    const endZoneFactor = target > 0.85 || target < 0.15 ? 0.18 : 0.25;
+    const next = current + diff * endZoneFactor;
     currentProgressRef.current = next;
     setScrollProgress(Number(next.toFixed(4)));
 
