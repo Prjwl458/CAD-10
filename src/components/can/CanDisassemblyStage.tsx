@@ -50,10 +50,42 @@ export function CanDisassemblyStage({
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
     // -------------------------------------------------------------------------
+    // Smooth C1 Opacity Envelopes — Zero Jarring Dissolves or Brightness Dips
+    // -------------------------------------------------------------------------
+    // Stage 0: Assembled Can (1.0 -> 0.0 between 0.12 and 0.18)
+    const assembledOpacity = 1 - smoothstep(0.12, 0.18, p);
+
+    // Stage 1: Outer Shell (in 0.12 -> 0.18, out 0.30 -> 0.38 while in full motion)
+    const shellIn = smoothstep(0.12, 0.18, p);
+    const shellOut = 1 - smoothstep(0.30, 0.38, p);
+    const shellOpacity = shellIn * shellOut;
+
+    // Stage 2: PU Foam Core (in under shell 0.14 -> 0.24, out lifting 0.54 -> 0.64)
+    const puIn = smoothstep(0.14, 0.24, p);
+    const puOut = 1 - smoothstep(0.54, 0.64, p);
+    const puOpacity = puIn * puOut;
+
+    // Stage 3: Stainless Vessel & Columns (in under PU sleeve 0.48 -> 0.58, out to exploded 0.80 -> 0.88)
+    const vesselIn = smoothstep(0.48, 0.58, p);
+    const vesselOut = 1 - smoothstep(0.80, 0.88, p);
+    const vesselOpacity = vesselIn * vesselOut;
+
+    // Stage 4: Full Exploded Assembly (in 0.80 -> 0.88)
+    const explodedOpacity = smoothstep(0.80, 0.88, p);
+
+    const opacities = {
+      assembled: assembledOpacity,
+      shell: shellOpacity,
+      pu: puOpacity,
+      vessel: vesselOpacity,
+      exploded: explodedOpacity,
+    };
+
+    // -------------------------------------------------------------------------
     // 01 — Outer Shell Continuous Upward Extraction (0.12 -> 0.42)
     // Continues smooth upward travel through the entire 26% -> 40% window without stalling
     // -------------------------------------------------------------------------
-        const shellLiftProgress = clamp01((p - 0.12) / 0.30);
+    const shellLiftProgress = clamp01((p - 0.12) / 0.30);
     const shellLift = easeInOutCubic(shellLiftProgress) * 130;
 
     // -------------------------------------------------------------------------
@@ -81,8 +113,8 @@ export function CanDisassemblyStage({
     // -------------------------------------------------------------------------
     const vesselPreStartProgress = clamp01((p - 0.36) / 0.12);
     const vesselPreStart = easeInOutCubic(vesselPreStartProgress) * 5;
-const vesselSettle = 0; // placeholder for settle movement
-const vesselPreExplode = 0; // placeholder for pre-explode movement
+    const vesselSettle = 0; // placeholder for settle movement
+    const vesselPreExplode = 0; // placeholder for pre-explode movement
     const vesselTotalY = vesselSettle + vesselPreExplode + vesselPreStart;
 
     // -------------------------------------------------------------------------
@@ -92,47 +124,14 @@ const vesselPreExplode = 0; // placeholder for pre-explode movement
     const expProgress = clamp01((p - 0.80) / 0.12);
     const expScale = 0.96 + 0.04 * easeOutCubic(expProgress);
     const expOffset = (1 - easeOutCubic(expProgress)) * 12;
-    
+
     const transforms = {
-            shell: `translate3d(0, ${-shellLift}px, 0) scale(${1 - 0.04 * (1 - shellOpacity)})`,
+      shell: `translate3d(0, ${-shellLift}px, 0) scale(${1 - 0.04 * (1 - shellOpacity)})`,
       insulationPu: `translate3d(0, ${puTotalY}px, 0)`,
       vessel: `translate3d(0, ${vesselTotalY}px, 0)`,
       columns: `translate3d(0, ${vesselTotalY}px, 0)`,
       exploded: `translate3d(0, ${expOffset}px, 0) scale(${expScale})`,
       base: "translate3d(0, 0, 0)",
-    };
-
-    // -------------------------------------------------------------------------
-    // Smooth C1 Opacity Envelopes — Zero Jarring Dissolves or Brightness Dips
-    // -------------------------------------------------------------------------
-    // Stage 0: Assembled Can (1.0 -> 0.0 between 0.12 and 0.18)
-    const assembledOpacity = 1 - smoothstep(0.12, 0.18, p);
-
-    // Stage 1: Outer Shell (in 0.12 -> 0.18, out 0.30 -> 0.38 while in full motion)
-const shellIn = smoothstep(0.12, 0.18, p);
-const shellOut = 1 - smoothstep(0.30, 0.38, p);
-const shellOpacity = shellIn * shellOut;
-
-
-    // Stage 2: PU Foam Core (in under shell 0.14 -> 0.24, out lifting 0.54 -> 0.64)
-    const puIn = smoothstep(0.14, 0.24, p);
-    const puOut = 1 - smoothstep(0.54, 0.64, p);
-    const puOpacity = puIn * puOut;
-
-    // Stage 3: Stainless Vessel & Columns (in under PU sleeve 0.48 -> 0.58, out to exploded 0.80 -> 0.88)
-    const vesselIn = smoothstep(0.48, 0.58, p);
-    const vesselOut = 1 - smoothstep(0.80, 0.88, p);
-    const vesselOpacity = vesselIn * vesselOut;
-
-    // Stage 4: Full Exploded Assembly (in 0.80 -> 0.88)
-    const explodedOpacity = smoothstep(0.80, 0.88, p);
-
-    const opacities = {
-      assembled: assembledOpacity,
-      shell: shellOpacity,
-      pu: puOpacity,
-      vessel: vesselOpacity,
-      exploded: explodedOpacity,
     };
 
     return { physicalTransforms: transforms, layerOpacities: opacities };
