@@ -139,7 +139,7 @@ function CanPage() {
     const { top, height } = trackBoundsRef.current;
     const totalScrollable = height - window.innerHeight;
 
-    const stepTargets = [0.00, 0.28, 0.52, 0.74, 0.96];
+    const stepTargets = [0.00, 0.28, 0.52, 0.74, 1.00];
     const targetRatio = stepTargets[stepIndex] ?? 0;
     const targetScrollY = top + targetRatio * totalScrollable;
 

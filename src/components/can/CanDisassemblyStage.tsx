@@ -25,8 +25,8 @@ export function CanDisassemblyStage({
   const activeStepData: DisassemblyStep = DISASSEMBLY_STEPS[currentStep] ?? DISASSEMBLY_STEPS[0];
 
   /**
-   * Continuous physical keyframe interpolation with smoothstep and cubic curves.
-   * Ensures balanced visual density and zero transition drift at any static scroll progress.
+   * Continuous physical keyframe interpolation with smoothstep, cubic curves, and quintic ease-out for final stage.
+   * Ensures balanced visual density, smooth final stage resting, and zero transition drift.
    */
   const { physicalTransforms, layerOpacities } = useMemo(() => {
     const p = clamp01(scrollProgress);
@@ -41,6 +41,9 @@ export function CanDisassemblyStage({
       t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    // Quintic Ease-Out for gentle, high-friction deceleration into final exploded state
+    const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
 
     // Balanced opacity envelopes ensuring steady visual mass across [0.0, 1.0]
     // 1. Assembled stage (0.00 -> 0.22)
@@ -62,7 +65,7 @@ export function CanDisassemblyStage({
     const vesselOpacity = vesselIn * vesselOut;
 
     // 5. Complete exploded stage (0.82 -> 1.00)
-    const explodedOpacity = smoothstep(0.82, 0.96, p);
+    const explodedOpacity = smoothstep(0.80, 0.94, p);
 
     const opacities = {
       assembled: assembledOpacity,
@@ -92,11 +95,12 @@ export function CanDisassemblyStage({
     const vesselLiftY = easeInOutCubic(vesselLiftProgress) * -20;
     const vesselZ = easeInOutCubic(vesselLiftProgress) * -12;
 
-    // Exploded View
-    const expProgress = smoothstep(0.82, 1.00, p);
-    const expScale = 0.94 + 0.06 * easeOutCubic(expProgress);
-    const expOffsetY = (1 - easeOutCubic(expProgress)) * 18;
-    const expOffsetZ = easeOutCubic(expProgress) * 8;
+    // Exploded View — Smooth ease-out interpolation into full expansion
+    const expRawProgress = smoothstep(0.78, 1.00, p);
+    const expEased = easeOutQuint(expRawProgress);
+    const expScale = 0.94 + 0.06 * expEased;
+    const expOffsetY = (1 - expEased) * 20;
+    const expOffsetZ = expEased * 10;
 
     const transforms = {
       shell: `translate3d(0px, ${shellLiftY.toFixed(2)}px, ${shellLiftZ.toFixed(2)}px) scale3d(${shellScale}, ${shellScale}, 1)`,
