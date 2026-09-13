@@ -36,7 +36,7 @@ export function CanDisassemblyStage({
   const { physicalTransforms, layerOpacities } = useMemo(() => {
     const p = clamp01(scrollProgress);
 
-    // Smoothstep: C1 continuous S-curve with zero derivative at endpoints (prevents jarring crossfades)
+    // Smoothstep: C1 continuous S-curve with zero derivative at endpoints
     const smoothstep = (edge0: number, edge1: number, x: number) => {
       const t = clamp01((x - edge0) / (edge1 - edge0));
       return t * t * (3 - 2 * t);
@@ -49,28 +49,21 @@ export function CanDisassemblyStage({
     // Ease-out cubic for settling
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-    // -------------------------------------------------------------------------
-    // Smooth C1 Opacity Envelopes — Zero Jarring Dissolves or Brightness Dips
-    // -------------------------------------------------------------------------
-    // Stage 0: Assembled Can (1.0 -> 0.0 between 0.12 and 0.18)
+    // Smooth C1 Opacity Envelopes
     const assembledOpacity = 1 - smoothstep(0.12, 0.18, p);
 
-    // Stage 1: Outer Shell (in 0.12 -> 0.18, out 0.30 -> 0.38 while in full motion)
     const shellIn = smoothstep(0.12, 0.18, p);
     const shellOut = 1 - smoothstep(0.30, 0.38, p);
     const shellOpacity = shellIn * shellOut;
 
-    // Stage 2: PU Foam Core (in under shell 0.14 -> 0.24, out lifting 0.54 -> 0.64)
     const puIn = smoothstep(0.14, 0.24, p);
     const puOut = 1 - smoothstep(0.54, 0.64, p);
     const puOpacity = puIn * puOut;
 
-    // Stage 3: Stainless Vessel & Columns (in under PU sleeve 0.48 -> 0.58, out to exploded 0.80 -> 0.88)
     const vesselIn = smoothstep(0.48, 0.58, p);
     const vesselOut = 1 - smoothstep(0.80, 0.88, p);
     const vesselOpacity = vesselIn * vesselOut;
 
-    // Stage 4: Full Exploded Assembly (in 0.80 -> 0.88)
     const explodedOpacity = smoothstep(0.80, 0.88, p);
 
     const opacities = {
@@ -81,23 +74,12 @@ export function CanDisassemblyStage({
       exploded: explodedOpacity,
     };
 
-    // -------------------------------------------------------------------------
-    // 01 — Outer Shell Continuous Upward Extraction (0.12 -> 0.42)
-    // Continues smooth upward travel through the entire 26% -> 40% window without stalling
-    // -------------------------------------------------------------------------
+    // Continuous 3D spatial transforms
     const shellLiftProgress = clamp01((p - 0.12) / 0.30);
     const shellLift = easeInOutCubic(shellLiftProgress) * 130;
 
-    // -------------------------------------------------------------------------
-    // 02 — PU Foam Core Reveal, Float, & Sleeve Extraction (0.18 -> 0.64)
-    // 1. Subtly emerges as outer shell lifts (0.18 -> 0.36)
-    // 2. Holds focus at Stage 2 milestone (0.48)
-    // 3. Lifts upward off inner container to reveal the stainless vessel (0.48 -> 0.64)
-    // -------------------------------------------------------------------------
     const puEmergeProgress = clamp01((p - 0.18) / 0.18);
     const puEmerge = (1 - easeOutCubic(puEmergeProgress)) * 8;
-
-    // Blend emergence and lift between 0.36 and 0.48
     const puBlend = smoothstep(0.36, 0.48, p);
     const puEmergeAdjusted = puEmerge * (1 - puBlend);
 
@@ -105,32 +87,21 @@ export function CanDisassemblyStage({
     const puLift = easeInOutCubic(puLiftProgress) * 90;
     const puTotalY = puEmergeAdjusted - puLift;
 
-    // -------------------------------------------------------------------------
-    // 03 — Stainless Steel Inner Vessel & Columns (0.48 -> 0.88)
-    // 1. Settles into grounded position as PU sleeve lifts off (0.48 -> 0.60)
-    // 2. Grounded & crisp at Stage 3 milestone (0.70)
-    // 3. Seamlessly anchors to base alignment for exploded view (0.78 -> 0.88)
-    // -------------------------------------------------------------------------
     const vesselPreStartProgress = clamp01((p - 0.36) / 0.12);
     const vesselPreStart = easeInOutCubic(vesselPreStartProgress) * 5;
-    const vesselSettle = 0; // placeholder for settle movement
-    const vesselPreExplode = 0; // placeholder for pre-explode movement
-    const vesselTotalY = vesselSettle + vesselPreExplode + vesselPreStart;
 
-    // -------------------------------------------------------------------------
-    // 04 — Full Exploded Assembly Mechanical Expansion (0.80 -> 0.94)
-    // Organic expansion outward from base container into exploded stack
-    // -------------------------------------------------------------------------
     const expProgress = clamp01((p - 0.80) / 0.12);
     const expScale = 0.96 + 0.04 * easeOutCubic(expProgress);
     const expOffset = (1 - easeOutCubic(expProgress)) * 12;
 
+    const shellScale = (1 - 0.04 * (1 - shellOpacity)).toFixed(4);
+
     const transforms = {
-      shell: `translate3d(0, ${-shellLift}px, 0) scale(${1 - 0.04 * (1 - shellOpacity)})`,
-      insulationPu: `translate3d(0, ${puTotalY}px, 0)`,
-      vessel: `translate3d(0, ${vesselTotalY}px, 0)`,
-      columns: `translate3d(0, ${vesselTotalY}px, 0)`,
-      exploded: `translate3d(0, ${expOffset}px, 0) scale(${expScale})`,
+      shell: `translate3d(0, ${-shellLift.toFixed(2)}px, 0) scale3d(${shellScale}, ${shellScale}, 1)`,
+      insulationPu: `translate3d(0, ${puTotalY.toFixed(2)}px, 0)`,
+      vessel: `translate3d(0, ${vesselPreStart.toFixed(2)}px, 0)`,
+      columns: `translate3d(0, ${vesselPreStart.toFixed(2)}px, 0)`,
+      exploded: `translate3d(0, ${expOffset.toFixed(2)}px, 0) scale3d(${expScale.toFixed(4)}, ${expScale.toFixed(4)}, 1)`,
       base: "translate3d(0, 0, 0)",
     };
 
@@ -146,11 +117,11 @@ export function CanDisassemblyStage({
     >
       {/* Main Visual Viewport — continuous scroll-driven layered disassembly */}
       <div className="relative flex aspect-square max-h-[min(46vh,420px)] w-full max-w-[480px] items-center justify-center self-center p-4 sm:max-h-none sm:p-8">
-        {/* Stage 00 — Assembled render (starting truth) */}
+        {/* Stage 00 — Assembled render */}
         {layerOpacities.assembled > 0 && (
           <div
             style={{ opacity: layerOpacities.assembled }}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-transform"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
           >
             <img
               src="/assets/can/assembled/can-assembled.png"
@@ -161,14 +132,14 @@ export function CanDisassemblyStage({
           </div>
         )}
 
-        {/* Stage 03 — Stainless Steel Inner Vessel with 4 Columns (innermost core) */}
+        {/* Stage 03 — Stainless Steel Inner Vessel */}
         {layerOpacities.vessel > 0 && (
           <div
             style={{
               opacity: layerOpacities.vessel,
               transform: physicalTransforms.vessel,
             }}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-transform"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
           >
             <img
               src="/assets/can/layers/can-inner-container-edited.png"
@@ -179,14 +150,14 @@ export function CanDisassemblyStage({
           </div>
         )}
 
-        {/* Stage 02 — PU Foam Insulation Core (middle sleeve over inner vessel) */}
+        {/* Stage 02 — PU Foam Insulation Core */}
         {layerOpacities.pu > 0 && (
           <div
             style={{
               opacity: layerOpacities.pu,
               transform: physicalTransforms.insulationPu,
             }}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-transform"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
           >
             <img
               src="/assets/can/layers/can-insulation-pu.png"
@@ -197,14 +168,14 @@ export function CanDisassemblyStage({
           </div>
         )}
 
-        {/* Stage 01 — HDPE outer shell (outermost protective wall over PU core) */}
+        {/* Stage 01 — HDPE Outer Shell */}
         {layerOpacities.shell > 0 && (
           <div
             style={{
               opacity: layerOpacities.shell,
               transform: physicalTransforms.shell,
             }}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-transform"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
           >
             <img
               src="/assets/can/layers/can-assembled.png"
@@ -215,7 +186,7 @@ export function CanDisassemblyStage({
           </div>
         )}
 
-        {/* Stage 04 — Complete Exploded Assembly (coaxial mechanical expansion) */}
+        {/* Stage 04 — Complete Exploded Assembly */}
         {layerOpacities.exploded > 0 && (
           <div
             style={{
@@ -223,7 +194,7 @@ export function CanDisassemblyStage({
               transform: physicalTransforms.exploded,
               transformOrigin: "50% 90%",
             }}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-transform"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
           >
             <img
               src="/assets/can/exploded/can-exploded.png"

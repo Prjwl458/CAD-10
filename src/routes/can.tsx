@@ -37,6 +37,33 @@ function CanPage() {
 
   const scrollTrackRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
+  const trackBoundsRef = useRef<{ top: number; height: number }>({ top: 0, height: 0 });
+  const targetProgressRef = useRef<number>(0);
+  const currentProgressRef = useRef<number>(0);
+
+  // Update cached geometry on resize to avoid reading DOM properties inside high-frequency scroll events
+  const updateTrackBounds = useCallback(() => {
+    if (!scrollTrackRef.current) return;
+    const rect = scrollTrackRef.current.getBoundingClientRect();
+    const scrollTop = window.scrollY || window.pageYOffset;
+    trackBoundsRef.current = {
+      top: rect.top + scrollTop,
+      height: rect.height,
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "disassembly") return;
+
+    updateTrackBounds();
+    window.addEventListener("resize", updateTrackBounds, { passive: true });
+    window.addEventListener("orientationchange", updateTrackBounds, { passive: true });
+
+    return () => {
+      window.removeEventListener("resize", updateTrackBounds);
+      window.removeEventListener("orientationchange", updateTrackBounds);
+    };
+  }, [activeTab, updateTrackBounds]);
 
   // Derive active stage from continuous scroll progress
   useEffect(() => {
@@ -55,34 +82,53 @@ function CanPage() {
     });
   }, [scrollProgress]);
 
-  // Passive, layout-safe scroll listener bound to the scroll track
-  const handleScroll = useCallback(() => {
-    if (!scrollTrackRef.current || activeTab !== "disassembly") return;
-    if (rafRef.current) return;
+  // Smooth frame interpolation (Lerp) for continuous 60 FPS animation
+  const animateScroll = useCallback(() => {
+    const target = targetProgressRef.current;
+    const current = currentProgressRef.current;
+    const diff = target - current;
 
-    rafRef.current = window.requestAnimationFrame(() => {
+    if (Math.abs(diff) < 0.0001) {
+      currentProgressRef.current = target;
+      setScrollProgress(target);
       rafRef.current = 0;
-      const track = scrollTrackRef.current;
-      if (!track) return;
+      return;
+    }
 
-      const trackTop = track.offsetTop;
-      const trackHeight = track.offsetHeight;
-      const windowHeight = window.innerHeight;
-      const totalScrollable = trackHeight - windowHeight;
+    // Organic lerp factor for butter-smooth progress transition
+    const next = current + diff * 0.25;
+    currentProgressRef.current = next;
+    setScrollProgress(Number(next.toFixed(4)));
 
-      if (totalScrollable <= 0) return;
+    rafRef.current = requestAnimationFrame(animateScroll);
+  }, []);
 
-      const currentScrolled = window.scrollY - trackTop;
-      const progress = Math.max(0, Math.min(1, currentScrolled / totalScrollable));
-      const roundedProgress = Number(progress.toFixed(4));
+  // High performance passive scroll listener using cached bounds
+  const handleScroll = useCallback(() => {
+    if (activeTab !== "disassembly") return;
 
-      setScrollProgress((prev) => (Math.abs(prev - roundedProgress) > 0.0001 ? roundedProgress : prev));
-    });
-  }, [activeTab]);
+    const { top, height } = trackBoundsRef.current;
+    const windowHeight = window.innerHeight;
+    const totalScrollable = height - windowHeight;
+
+    if (totalScrollable <= 0) return;
+
+    const currentScrolled = window.scrollY - top;
+    const rawProgress = Math.max(0, Math.min(1, currentScrolled / totalScrollable));
+
+    targetProgressRef.current = rawProgress;
+
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(animateScroll);
+    }
+  }, [activeTab, animateScroll]);
 
   useEffect(() => {
+    if (activeTab !== "disassembly") return;
+
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // initial sync
+    handleScroll();
+
     return () => {
       window.removeEventListener("scroll", handleScroll);
       if (rafRef.current) {
@@ -90,18 +136,18 @@ function CanPage() {
         rafRef.current = 0;
       }
     };
-  }, [handleScroll]);
+  }, [activeTab, handleScroll]);
 
-  // Scroll smoothly to stage milestone using compositor-driven smooth scroll
+  // Smooth scroll to stage milestone
   const scrollToStep = (stepIndex: number) => {
     if (!scrollTrackRef.current) return;
-    const track = scrollTrackRef.current;
-    const trackTop = track.offsetTop;
-    const totalScrollable = track.offsetHeight - window.innerHeight;
+    updateTrackBounds();
+    const { top, height } = trackBoundsRef.current;
+    const totalScrollable = height - window.innerHeight;
 
     const stepTargets = [0.05, 0.26, 0.48, 0.7, 0.94];
     const targetRatio = stepTargets[stepIndex] ?? 0;
-    const targetScrollY = trackTop + targetRatio * totalScrollable;
+    const targetScrollY = top + targetRatio * totalScrollable;
 
     window.scrollTo({
       top: targetScrollY,
@@ -262,17 +308,19 @@ function CanPage() {
                       type="range"
                       min="0"
                       max="1"
-                      step="0.01"
+                      step="0.005"
                       value={scrollProgress}
                       onChange={(e) => {
                         const val = Number(e.target.value);
+                        targetProgressRef.current = val;
+                        currentProgressRef.current = val;
                         setScrollProgress(val);
                         if (scrollTrackRef.current) {
-                          const track = scrollTrackRef.current;
-                          const trackTop = track.offsetTop;
-                          const totalScrollable = track.offsetHeight - window.innerHeight;
+                          updateTrackBounds();
+                          const { top, height } = trackBoundsRef.current;
+                          const totalScrollable = height - window.innerHeight;
                           window.scrollTo({
-                            top: trackTop + val * totalScrollable,
+                            top: top + val * totalScrollable,
                             behavior: "auto",
                           });
                         }
