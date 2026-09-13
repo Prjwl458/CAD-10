@@ -25,13 +25,13 @@ export function CanDisassemblyStage({
   const activeStepData: DisassemblyStep = DISASSEMBLY_STEPS[currentStep] ?? DISASSEMBLY_STEPS[0];
 
   /**
-   * Continuous physical keyframe interpolation with proportional translate3d(x, y, z) spatial offsets.
-   * Component layers separate at relative physical velocities with realistic spatial visual depth.
+   * Continuous physical keyframe interpolation with smoothstep and cubic curves
+   * spanning continuously across the entire normalized [0.0, 1.0] scroll range.
    */
   const { physicalTransforms, layerOpacities } = useMemo(() => {
     const p = clamp01(scrollProgress);
 
-    // Smoothstep for smooth C1 continuous transitions
+    // Continuous smoothstep (Hermite C1 interpolation)
     const smoothstep = (edge0: number, edge1: number, x: number) => {
       const t = clamp01((x - edge0) / (edge1 - edge0));
       return t * t * (3 - 2 * t);
@@ -42,22 +42,27 @@ export function CanDisassemblyStage({
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-    // Continuous opacity envelopes across disassembly stages
-    const assembledOpacity = 1 - smoothstep(0.10, 0.22, p);
+    // Continuous overlapping opacity envelopes across [0.0, 1.0]
+    // 1. Assembled stage (0.00 -> 0.25)
+    const assembledOpacity = 1 - smoothstep(0.08, 0.25, p);
 
-    const shellIn = smoothstep(0.08, 0.20, p);
-    const shellOut = 1 - smoothstep(0.34, 0.44, p);
+    // 2. Outer shell stage (0.15 -> 0.48)
+    const shellIn = smoothstep(0.12, 0.25, p);
+    const shellOut = 1 - smoothstep(0.42, 0.52, p);
     const shellOpacity = shellIn * shellOut;
 
-    const puIn = smoothstep(0.25, 0.38, p);
-    const puOut = 1 - smoothstep(0.58, 0.68, p);
+    // 3. PU insulation stage (0.40 -> 0.72)
+    const puIn = smoothstep(0.38, 0.48, p);
+    const puOut = 1 - smoothstep(0.66, 0.76, p);
     const puOpacity = puIn * puOut;
 
-    const vesselIn = smoothstep(0.50, 0.64, p);
-    const vesselOut = 1 - smoothstep(0.78, 0.88, p);
+    // 4. Inner vessel stage (0.62 -> 0.90)
+    const vesselIn = smoothstep(0.60, 0.72, p);
+    const vesselOut = 1 - smoothstep(0.84, 0.92, p);
     const vesselOpacity = vesselIn * vesselOut;
 
-    const explodedOpacity = smoothstep(0.78, 0.90, p);
+    // 5. Complete exploded stage (0.80 -> 1.00)
+    const explodedOpacity = smoothstep(0.80, 0.94, p);
 
     const opacities = {
       assembled: assembledOpacity,
@@ -67,31 +72,31 @@ export function CanDisassemblyStage({
       exploded: explodedOpacity,
     };
 
-    // Continuous 1:1 physical displacement keyframes with relative velocities & Z-depth
-    // 1. Outer Shell: Lifts vertically at high velocity (v = 1.4x) with forward Z-offset
-    const shellLiftProgress = clamp01((p - 0.10) / 0.28);
-    const shellLiftY = easeInOutCubic(shellLiftProgress) * -160;
-    const shellLiftZ = easeInOutCubic(shellLiftProgress) * 25; // slightly closer to viewer
-    const shellScale = (1 - 0.02 * (1 - shellOpacity)).toFixed(4);
+    // Continuous 1:1 physical displacement keyframes across full [0.0, 1.0] scroll progress
+    // Outer Shell displacement
+    const shellLiftProgress = smoothstep(0.12, 0.48, p);
+    const shellLiftY = easeInOutCubic(shellLiftProgress) * -170;
+    const shellLiftZ = easeInOutCubic(shellLiftProgress) * 30;
+    const shellScale = (1.0 - 0.03 * (1.0 - shellOpacity)).toFixed(4);
 
-    // 2. Polyurethane Insulation Core: Medium relative velocity (v = 1.0x) with intermediate Z-offset
-    const puEmergeProgress = clamp01((p - 0.22) / 0.20);
-    const puEmergeY = (1 - easeOutCubic(puEmergeProgress)) * 12;
-    const puLiftProgress = clamp01((p - 0.44) / 0.22);
-    const puLiftY = easeInOutCubic(puLiftProgress) * -120;
+    // PU Core displacement
+    const puEmergeProgress = smoothstep(0.25, 0.45, p);
+    const puEmergeY = (1 - easeOutCubic(puEmergeProgress)) * 14;
+    const puLiftProgress = smoothstep(0.42, 0.72, p);
+    const puLiftY = easeInOutCubic(puLiftProgress) * -130;
     const puTotalY = puEmergeY + puLiftY;
-    const puZ = easeInOutCubic(puLiftProgress) * 10;
+    const puZ = easeInOutCubic(puLiftProgress) * 12;
 
-    // 3. Stainless Inner Vessel & PCM Sleeve: Stable base anchor velocity (v = 0.3x)
-    const vesselLiftProgress = clamp01((p - 0.52) / 0.20);
-    const vesselLiftY = easeInOutCubic(vesselLiftProgress) * -15;
-    const vesselZ = easeInOutCubic(vesselLiftProgress) * -10;
+    // Stainless Inner Vessel displacement
+    const vesselLiftProgress = smoothstep(0.60, 0.86, p);
+    const vesselLiftY = easeInOutCubic(vesselLiftProgress) * -20;
+    const vesselZ = easeInOutCubic(vesselLiftProgress) * -12;
 
-    // 4. Complete Exploded Assembly: Multi-axis 3D spatial fan-out
-    const expProgress = clamp01((p - 0.78) / 0.20);
-    const expScale = 0.95 + 0.05 * easeOutCubic(expProgress);
-    const expOffsetY = (1 - easeOutCubic(expProgress)) * 16;
-    const expOffsetZ = easeOutCubic(expProgress) * 5;
+    // Exploded View spatial fan-out
+    const expProgress = smoothstep(0.80, 1.00, p);
+    const expScale = 0.94 + 0.06 * easeOutCubic(expProgress);
+    const expOffsetY = (1 - easeOutCubic(expProgress)) * 18;
+    const expOffsetZ = easeOutCubic(expProgress) * 8;
 
     const transforms = {
       shell: `translate3d(0px, ${shellLiftY.toFixed(2)}px, ${shellLiftZ.toFixed(2)}px) scale3d(${shellScale}, ${shellScale}, 1)`,

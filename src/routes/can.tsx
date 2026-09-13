@@ -65,13 +65,13 @@ function CanPage() {
     };
   }, [activeTab, updateTrackBounds]);
 
-  // Derive active stage indicator from continuous scroll progress
+  // Derive active stage indicator smoothly from continuous scroll progress
   useEffect(() => {
     let step = 0;
     if (scrollProgress >= 0.82) step = 4;
-    else if (scrollProgress >= 0.60) step = 3;
-    else if (scrollProgress >= 0.38) step = 2;
-    else if (scrollProgress >= 0.16) step = 1;
+    else if (scrollProgress >= 0.62) step = 3;
+    else if (scrollProgress >= 0.40) step = 2;
+    else if (scrollProgress >= 0.18) step = 1;
     else step = 0;
 
     setCurrentStep(step);
@@ -139,7 +139,7 @@ function CanPage() {
     const { top, height } = trackBoundsRef.current;
     const totalScrollable = height - window.innerHeight;
 
-    const stepTargets = [0.05, 0.26, 0.48, 0.70, 0.94];
+    const stepTargets = [0.00, 0.28, 0.52, 0.74, 0.96];
     const targetRatio = stepTargets[stepIndex] ?? 0;
     const targetScrollY = top + targetRatio * totalScrollable;
 
