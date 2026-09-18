@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import {
+  CAN_STAGE_TRANSITIONS,
   DISASSEMBLY_STEPS,
   type CanComponentId,
   type DisassemblyStep,
@@ -22,92 +23,114 @@ export function CanDisassemblyStage({
   onSelectComponent: (id: CanComponentId) => void;
   className?: string;
 }) {
-  const activeStepData: DisassemblyStep = DISASSEMBLY_STEPS[currentStep] ?? DISASSEMBLY_STEPS[0];
+  const activeStepData: DisassemblyStep = DISASSEMBLY_STEPS[currentStep] ?? DISASSEMBLY_STEPS[0]!;
 
-  /** Continuous physical keyframe interpolation. */
-  const { physicalTransforms, layerOpacities } = useMemo(() => {
+  /**
+   * Art-directed state sequence (NOT a physical disassembly).
+   *
+   * Current behavior replaced: the previous model slid PNG layers apart with
+   * large X/Y offsets, which read as objects flying around. The assets are
+   * illustrations/engineering renders, so the stage now presents ONE dominant
+   * illustration at a time and dissolves between states like a premium
+   * product/engineering presentation changing viewpoints.
+   *
+   * Why the old feel was wrong: independent per-layer envelopes meant up to
+   * three opaque images stacked together, with movement as the primary cue.
+   * Here opacity is the handoff cue, supported only by a ±1.6% scale breath
+   * and a ≤5px midpoint blur. Zero translation, zero rotation, zero 3D.
+   *
+   * State -> asset mapping (existing renders only):
+   *   0 HERO/ASSEMBLED  -> assembled/can-assembled.png
+   *   1 OUTER SHELL     -> layers/can-assembled.png
+   *   2 INSULATION      -> layers/can-insulation-pu.png
+   *   3 VESSEL+COLUMNS  -> layers/can-inner-container-edited.png (carries both
+   *                        the inner-container and column-structure beats; the
+   *                        column story is told via its two hotspots)
+   *   4 EXPLODED        -> exploded/can-exploded.png
+   *
+   * p in [0,1] is the only driver (fully reversible, no jumps). Transition
+   * windows are centered on the existing step thresholds in can.tsx
+   * (0.18/0.40/0.62/0.82) so inspector text and hotspot-set swaps land
+   * mid-dissolve, coordinated with the visual handoff. Windows are disjoint,
+   * so at most two illustrations are ever partially visible and exactly one
+   * dominates outside transitions.
+   */
+  const { physicalTransforms, layerOpacities, layerBlurs, stepWeights } = useMemo(() => {
     const p = clamp01(scrollProgress);
 
-    // Continuous smoothstep (Hermite C1 interpolation)
-    const smoothstep = (edge0: number, edge1: number, x: number) => {
-      const t = clamp01((x - edge0) / (edge1 - edge0));
+    // Single easing primitive (Hermite, applied once per ramp — never stacked).
+    const ss = (a: number, b: number, x: number) => {
+      const t = clamp01((x - a) / (b - a));
       return t * t * (3 - 2 * t);
     };
 
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    // Handoff windows come from the authoritative stage table
+    // (CAN_STAGE_TRANSITIONS): short 6% dissolves centered on the step
+    // thresholds, leaving ~14-16% calm holds per state. Transitions are NOT
+    // slowed — holds are longer, handoffs stay crisp.
+    const WINDOWS = CAN_STAGE_TRANSITIONS.map((transition) => ({
+      a: transition.windowFrom,
+      b: transition.windowTo,
+    }));
 
-    // Components stay mounted throughout. Their visibility overlaps their
-    // movement, preventing an invisible layer from arriving late in view.
-    const assembledOpacity = 1 - smoothstep(0.04, 0.18, p);
-
-    const shellIn = smoothstep(0.04, 0.18, p);
-    const shellOut = 1 - smoothstep(0.52, 0.7, p);
-    const shellOpacity = easeOutCubic(shellIn) * easeOutCubic(shellOut);
-
-    const puIn = smoothstep(0.18, 0.36, p);
-    const puOut = 1 - smoothstep(0.72, 0.88, p);
-    const puOpacity = easeOutCubic(puIn) * easeOutCubic(puOut);
-
-    const vesselIn = smoothstep(0.32, 0.5, p);
-    const vesselOut = 1 - smoothstep(0.84, 0.96, p);
-    const vesselOpacity = easeOutCubic(vesselIn) * easeOutCubic(vesselOut);
-
-    const explodedOpacity = easeOutCubic(smoothstep(0.82, 0.98, p));
+    // --- Dominance (exactly one state at 1.0 outside windows) ---
+    const t = WINDOWS.map((w) => ss(w.a, w.b, p));
+    const weights = [
+      1 - t[0]!,
+      t[0]! * (1 - t[1]!),
+      t[1]! * (1 - t[2]!),
+      t[2]! * (1 - t[3]!),
+      t[3]!,
+    ];
 
     const opacities = {
-      assembled: assembledOpacity,
-      shell: shellOpacity,
-      pu: puOpacity,
-      vessel: vesselOpacity,
-      exploded: explodedOpacity,
+      assembled: weights[0]!,
+      shell: weights[1]!,
+      pu: weights[2]!,
+      vessel: weights[3]!,
+      exploded: weights[4]!,
     };
 
-    // Restrained component offsets preserve a stable centre of mass.  The
-    // layers separate around the can rather than reading as full-height panels
-    // travelling up the viewport.
-    // Outer Shell
-    const shellLiftProgress = smoothstep(0.08, 0.5, p);
-    const shellLiftX = easeOutCubic(shellLiftProgress) * -10;
-    const shellLiftY = easeOutCubic(shellLiftProgress) * -48;
-    const shellLiftZ = easeOutCubic(shellLiftProgress) * 12;
-    const shellRotation = easeOutCubic(shellLiftProgress) * -0.8;
-    const shellScale = (1.0 - 0.03 * (1.0 - shellOpacity)).toFixed(4);
+    // --- Settle (scale breath + midpoint blur, no translation) ---
+    // Entering: 0.984 -> 1.0 with 5px -> 0px blur. Holding: 1.0, sharp.
+    // Leaving: 1.0 -> 1.016 with 0px -> 5px blur. State 0 starts settled,
+    // state 4 never leaves.
+    const inT = [1, t[0]!, t[1]!, t[2]!, t[3]!];
+    const outT = [t[0]!, t[1]!, t[2]!, t[3]!, 0];
+    const scales = inT.map((enter, i) => 0.984 + 0.016 * enter + 0.016 * outT[i]!);
+    const blurs = inT.map((enter, i) => (1 - enter) * 5 + outT[i]! * 5);
 
-    // PU Core
-    const puEmergeProgress = smoothstep(0.18, 0.42, p);
-    const puEmergeY = (1 - easeOutCubic(puEmergeProgress)) * 6;
-    const puLiftProgress = smoothstep(0.38, 0.76, p);
-    const puLiftX = easeOutCubic(puLiftProgress) * 8; // eased lateral movement
-    const puLiftY = easeOutCubic(puLiftProgress) * -26;
-    const puTotalY = puEmergeY + puLiftY;
-    const puZ = easeOutCubic(puLiftProgress) * 8;
-    const puRotation = easeOutCubic(puLiftProgress) * 0.275; // reduced rotation
+    const scale3d = (s: number) => {
+      const v = s.toFixed(4);
+      return `scale3d(${v}, ${v}, 1)`;
+    };
 
-    // Stainless Inner Vessel
-    const vesselLiftProgress = smoothstep(0.32, 0.88, p);
-    const vesselLiftX = easeOutCubic(vesselLiftProgress) * 3;
-    const vesselLiftY = easeOutCubic(vesselLiftProgress) * 8;
-    const vesselZ = easeOutCubic(vesselLiftProgress) * -4;
-    const vesselRotation = easeOutCubic(vesselLiftProgress) * -0.15; // reduced rotation
-
-    // The final artwork takes over with the same C1 interpolation used by the
-    // physical layers, avoiding an over-eased final approach or visible snap.
-    const expProgress = smoothstep(0.82, 1.0, p);
-    const expProgressEased = easeOutCubic(expProgress);
-    const expScale = 0.94 + 0.06 * expProgressEased; // use eased progress for scale
-    const expOffsetY = (1 - expProgressEased) * 20;
-    const expOffsetZ = expProgressEased * 10;
-
+    // Keys preserved for CanHotspotOverlay (shell/insulationPu/vessel/columns/
+    // exploded/base). Columns share the vessel artwork, so they inherit the
+    // vessel settle exactly.
     const transforms = {
-      shell: `translate3d(${shellLiftX.toFixed(2)}px, ${shellLiftY.toFixed(2)}px, ${shellLiftZ.toFixed(2)}px) rotateZ(${shellRotation.toFixed(2)}deg) scale3d(${shellScale}, ${shellScale}, 1)`,
-      insulationPu: `translate3d(${puLiftX.toFixed(2)}px, ${puTotalY.toFixed(2)}px, ${puZ.toFixed(2)}px) rotateZ(${puRotation.toFixed(2)}deg)`,
-      vessel: `translate3d(${vesselLiftX.toFixed(2)}px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px) rotateZ(${vesselRotation.toFixed(2)}deg)`,
-      columns: `translate3d(${vesselLiftX.toFixed(2)}px, ${vesselLiftY.toFixed(2)}px, ${vesselZ.toFixed(2)}px) rotateZ(${vesselRotation.toFixed(2)}deg)`,
-      exploded: `translate3d(0px, ${expOffsetY.toFixed(2)}px, ${expOffsetZ.toFixed(2)}px) scale3d(${expScale.toFixed(4)}, ${expScale.toFixed(4)}, 1)`,
-      base: "translate3d(0px, 0px, 0px)",
+      shell: scale3d(scales[1]!),
+      insulationPu: scale3d(scales[2]!),
+      vessel: scale3d(scales[3]!),
+      columns: scale3d(scales[3]!),
+      exploded: scale3d(scales[4]!),
+      base: "none",
     };
 
-    return { physicalTransforms: transforms, layerOpacities: opacities };
+    const blurFor = {
+      assembled: blurs[0]!,
+      shell: blurs[1]!,
+      pu: blurs[2]!,
+      vessel: blurs[3]!,
+      exploded: blurs[4]!,
+    };
+
+    return {
+      physicalTransforms: transforms,
+      layerOpacities: opacities,
+      layerBlurs: blurFor,
+      stepWeights: weights,
+    };
   }, [scrollProgress]);
 
   return (
@@ -117,24 +140,25 @@ export function CanDisassemblyStage({
         className,
       )}
     >
-      {/* Main Visual Viewport with 3D perspective for realistic depth separation */}
-      <div
-        className="relative flex aspect-square max-h-[min(46vh,420px)] w-full max-w-[480px] items-center justify-center self-center p-4 sm:max-h-none sm:p-8"
-        style={{ perspective: "1000px", transformStyle: "preserve-3d" }}
-      >
+      {/* Presentation viewport: one dominant illustration at a time */}
+      <div className="relative flex aspect-square max-h-[min(46vh,420px)] w-full max-w-[480px] items-center justify-center self-center p-4 sm:max-h-none sm:p-8">
         {/* Stage 00 — Assembled render */}
         <div
           style={{
             opacity: layerOpacities.assembled,
+            transform: "scale3d(1, 1, 1)",
+            filter: `blur(${layerBlurs.assembled.toFixed(2)}px)`,
             pointerEvents: layerOpacities.assembled > 0.05 ? "auto" : "none",
           }}
-          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
+          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity,filter]"
         >
           <img
             src="/assets/can/assembled/can-assembled.png"
             alt="CAD-10 Assembled Can"
             className="max-h-full max-w-full object-contain mix-blend-multiply"
             loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
         </div>
 
@@ -143,15 +167,18 @@ export function CanDisassemblyStage({
           style={{
             opacity: layerOpacities.vessel,
             transform: physicalTransforms.vessel,
+            filter: `blur(${layerBlurs.vessel.toFixed(2)}px)`,
             pointerEvents: layerOpacities.vessel > 0.05 ? "auto" : "none",
           }}
-          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
+          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity,filter]"
         >
           <img
             src="/assets/can/layers/can-inner-container-edited.png"
             alt="CAD-10 Inner Container with 4 Columns"
             className="max-h-full max-w-full object-contain mix-blend-multiply"
             loading="eager"
+            decoding="async"
+            fetchPriority="low"
           />
         </div>
 
@@ -160,15 +187,18 @@ export function CanDisassemblyStage({
           style={{
             opacity: layerOpacities.pu,
             transform: physicalTransforms.insulationPu,
+            filter: `blur(${layerBlurs.pu.toFixed(2)}px)`,
             pointerEvents: layerOpacities.pu > 0.05 ? "auto" : "none",
           }}
-          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
+          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity,filter]"
         >
           <img
             src="/assets/can/layers/can-insulation-pu.png"
-            alt="CAD-10 Polyurethane Insulation Core"
+            alt="CAD-10 Double Insulation Core"
             className="max-h-full max-w-full object-contain mix-blend-multiply"
             loading="eager"
+            decoding="async"
+            fetchPriority="low"
           />
         </div>
 
@@ -177,15 +207,18 @@ export function CanDisassemblyStage({
           style={{
             opacity: layerOpacities.shell,
             transform: physicalTransforms.shell,
+            filter: `blur(${layerBlurs.shell.toFixed(2)}px)`,
             pointerEvents: layerOpacities.shell > 0.05 ? "auto" : "none",
           }}
-          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
+          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity,filter]"
         >
           <img
             src="/assets/can/layers/can-assembled.png"
             alt="CAD-10 Outer HDPE Shell"
             className="max-h-full max-w-full object-contain mix-blend-multiply"
             loading="eager"
+            decoding="async"
+            fetchPriority="low"
           />
         </div>
 
@@ -194,16 +227,19 @@ export function CanDisassemblyStage({
           style={{
             opacity: layerOpacities.exploded,
             transform: physicalTransforms.exploded,
-            transformOrigin: "50% 90%",
+            transformOrigin: "50% 50%",
+            filter: `blur(${layerBlurs.exploded.toFixed(2)}px)`,
             pointerEvents: layerOpacities.exploded > 0.05 ? "auto" : "none",
           }}
-          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity]"
+          className="absolute inset-0 flex items-center justify-center p-6 will-change-[transform,opacity,filter]"
         >
           <img
             src="/assets/can/exploded/can-exploded.png"
             alt="CAD-10 Full Exploded Configuration"
             className="max-h-full max-w-full object-contain mix-blend-multiply"
             loading="eager"
+            decoding="async"
+            fetchPriority="low"
           />
         </div>
 
@@ -212,6 +248,7 @@ export function CanDisassemblyStage({
           stepData={activeStepData}
           currentStep={currentStep}
           physicalTransforms={physicalTransforms}
+          stepWeights={stepWeights}
           selectedComponentId={selectedComponentId}
           onSelectComponent={onSelectComponent}
         />

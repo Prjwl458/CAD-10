@@ -56,18 +56,18 @@ function LoginPage() {
       </header>
 
       <main className="mx-auto grid w-full max-w-6xl gap-8 px-4 pb-10 pt-6 sm:px-6 sm:pt-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 lg:px-8 lg:pb-20 lg:pt-16">
-        <section className="max-w-xl lg:pb-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" /> CAD-10 workspace
+        <section className="min-w-0 max-w-xl lg:pb-8">
+          <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" /> CAD-10 workspace
           </span>
-          <h1 className="mt-5 text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
+          <h1 className="mt-5 break-words text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
             Welcome back to <span className="text-primary">CAD-10.</span>
           </h1>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
+          <p className="mt-4 max-w-lg break-words text-base leading-relaxed text-muted-foreground sm:text-lg">
             Sign in to manage PCM operations, cooling performance, and engineering data.
           </p>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="mt-8 grid gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-1">
             {[
               "Centralize your operations",
               "Track PCM cycles with precision",
@@ -77,13 +77,13 @@ function LoginPage() {
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
                   <Check className="h-4 w-4" />
                 </span>
-                {item}
+                <span className="min-w-0 break-words leading-relaxed">{item}</span>
               </div>
             ))}
           </div>
         </section>
 
-        <Card className="w-full max-w-md justify-self-center p-5 sm:p-7">
+        <Card className="w-full min-w-0 max-w-md justify-self-center p-5 sm:p-7">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               Sign in

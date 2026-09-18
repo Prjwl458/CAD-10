@@ -46,17 +46,31 @@ export type DisassemblyStep = {
   activeHotspotIds: CanComponentId[];
 };
 
-export const CAN_DIMENSIONS = {
-  overallHeightMm: 420,
-  mainDiameterMm: 280,
-  neckDiameter: "As per design",
-  layersCount: 3,
-  columnsCount: 4,
-  columnHeight: "~350 mm",
-  columnWidth: "~50 mm",
-  columnSpacing: "90° spacing",
-  columnGeometry: "Semi-circular / D-shaped",
-};
+/**
+ * Authoritative scroll-progress definition for the 5 Can disassembly states
+ * (Assembled Can → Outer Shell → Thermal Barrier → Inner Container & Columns
+ * → Exploded Assembly).
+ *
+ * Each entry holds the state BOUNDARY (the progress value at which the
+ * dominant step flips) together with that handoff's cross-dissolve WINDOW
+ * (a ±0.03 hold around the boundary, during which the outgoing illustration
+ * dissolves into the incoming one). Values are intentionally literal: the
+ * window edges are NOT recomputed from the boundary because two of them
+ * differ by 1 ulp from boundary ± 0.03 in floating point, and this table
+ * preserves the exact shipped values.
+ *
+ * Consumers: currentStep derivation (can.tsx) counts boundaries at or below
+ * the scroll progress; the stage (CanDisassemblyStage) eases each window.
+ * Stepper landing positions (stepTargets in can.tsx) are deliberately NOT
+ * part of this table — they are rest positions inside each state's hold,
+ * a different semantic from boundaries.
+ */
+export const CAN_STAGE_TRANSITIONS = [
+  { boundary: 0.18, windowFrom: 0.15, windowTo: 0.21 },
+  { boundary: 0.4, windowFrom: 0.37, windowTo: 0.43 },
+  { boundary: 0.62, windowFrom: 0.59, windowTo: 0.65 },
+  { boundary: 0.82, windowFrom: 0.79, windowTo: 0.85 },
+] as const;
 
 /**
  * Native pixel dimensions of the supplied CAN layer renders (896×1200, aspect 0.7467).
@@ -68,11 +82,8 @@ export const CAN_ART_DIMS: Record<string, { w: number; h: number }> = {
   "assembled/can-assembled.png": { w: 896, h: 1200 },
   "layers/can-assembled.png": { w: 896, h: 1200 },
   "layers/can-insulation-pu.png": { w: 896, h: 1200 },
-  "layers/can-insulation-layer.png": { w: 896, h: 1200 },
-  "layers/can-inner-container.png": { w: 896, h: 1200 },
   "layers/can-inner-container-edited.png": { w: 896, h: 1200 },
   "exploded/can-exploded.png": { w: 896, h: 1200 },
-  "details/can-column-detail.png": { w: 896, h: 1200 },
 };
 
 export const CAN_COMPONENTS: Record<CanComponentId, CanComponentSpec> = {
@@ -221,10 +232,10 @@ export const DISASSEMBLY_STEPS: DisassemblyStep[] = [
     step: 2,
     stageNumber: "02",
     label: "Thermal Barrier",
-    componentTitle: "PU Foam Insulation",
+    componentTitle: "Double Insulation",
     material: "PU Foam",
     description:
-      "Intermediate polyurethane foam core forming an annular thermal insulation barrier.",
+      "Intermediate double-insulation core forming an annular thermal insulation barrier.",
     specifications: [
       { label: "Material", value: "PU Foam" },
       { label: "Layer Position", value: "Intermediate layer" },
@@ -257,7 +268,7 @@ export const DISASSEMBLY_STEPS: DisassemblyStep[] = [
     componentTitle: "Full Exploded Configuration",
     material: "3-Layer Architecture",
     description:
-      "Exploded view displaying the relationship between the outer HDPE shell, PU insulation, inner container, and four columns.",
+      "Exploded view displaying the relationship between the outer HDPE shell, double insulation, inner container, and four columns.",
     specifications: [
       { label: "Outer Layer", value: "HDPE shell" },
       { label: "Thermal Layer", value: "PU foam" },

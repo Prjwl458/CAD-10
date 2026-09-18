@@ -1,19 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Layers, Cylinder } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { Card } from "@/components/ui-kit";
 import {
-  CAN_DIMENSIONS,
   DISASSEMBLY_STEPS,
+  CAN_STAGE_TRANSITIONS,
   type CanComponentId,
 } from "@/config/can-specifications";
 import { CanDisassemblyStage } from "@/components/can/CanDisassemblyStage";
 import { CanInspector } from "@/components/can/CanInspector";
 import { CanLeaderLine } from "@/components/can/CanLeaderLine";
 import { CanStepController } from "@/components/can/CanStepController";
-import { CanBlueprint } from "@/components/can/CanBlueprint";
-import { cn } from "@/lib/utils";
+import { CanStageNavigator } from "@/components/can/CanStageNavigator";
 
 export const Route = createFileRoute("/can")({
   head: () => ({
@@ -33,13 +30,11 @@ function CanPage() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedComponentId, setSelectedComponentId] = useState<CanComponentId | null>(null);
-  const [activeTab, setActiveTab] = useState<"disassembly" | "blueprint">("disassembly");
 
   const scrollTrackRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
   const trackBoundsRef = useRef<{ top: number; height: number }>({ top: 0, height: 0 });
-  const targetProgressRef = useRef<number>(0);
-  const currentProgressRef = useRef<number>(0);
+  const pendingProgressRef = useRef<number>(0);
 
   // Update cached geometry on resize to avoid reading DOM properties inside high-frequency scroll events
   const updateTrackBounds = useCallback(() => {
@@ -53,8 +48,6 @@ function CanPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab !== "disassembly") return;
-
     updateTrackBounds();
     window.addEventListener("resize", updateTrackBounds, { passive: true });
     window.addEventListener("orientationchange", updateTrackBounds, { passive: true });
@@ -63,45 +56,29 @@ function CanPage() {
       window.removeEventListener("resize", updateTrackBounds);
       window.removeEventListener("orientationchange", updateTrackBounds);
     };
-  }, [activeTab, updateTrackBounds]);
+  }, [updateTrackBounds]);
 
-  // Derive active stage indicator smoothly from continuous scroll progress
+  // Derive active stage indicator smoothly from continuous scroll progress.
+  // The dominant step is the count of stage boundaries at or below the
+  // progress (CAN_STAGE_TRANSITIONS is the single source for boundaries).
   useEffect(() => {
     let step = 0;
-    if (scrollProgress >= 0.82) step = 4;
-    else if (scrollProgress >= 0.62) step = 3;
-    else if (scrollProgress >= 0.40) step = 2;
-    else if (scrollProgress >= 0.18) step = 1;
-    else step = 0;
+    for (const transition of CAN_STAGE_TRANSITIONS) {
+      if (scrollProgress < transition.boundary) break;
+      step += 1;
+    }
 
     setCurrentStep(step);
   }, [scrollProgress]);
 
-  // Precise fluid interpolation loop: glides into final resting point smoothly as target -> 1.0
-  const animateInterpolation = useCallback(() => {
-    const target = targetProgressRef.current;
-    const current = currentProgressRef.current;
-    const diff = target - current;
-
-    if (Math.abs(diff) < 0.0001) {
-      currentProgressRef.current = target;
-      setScrollProgress(target);
-      rafRef.current = 0;
-      return;
-    }
-
-    // Adaptive damping factor: smoother deceleration near extreme bounds (0.0 or 1.0)
-    const endZoneFactor = target > 0.85 || target < 0.15 ? 0.18 : 0.25;
-    const next = current + diff * endZoneFactor;
-    currentProgressRef.current = next;
-    setScrollProgress(Number(next.toFixed(4)));
-
-    rafRef.current = requestAnimationFrame(animateInterpolation);
+  // Render the scroll position itself. A requestAnimationFrame only coalesces
+  // browser events into one paint; it must not make the can chase scrolling.
+  const commitPendingProgress = useCallback(() => {
+    rafRef.current = 0;
+    setScrollProgress(pendingProgressRef.current);
   }, []);
 
   const handleScroll = useCallback(() => {
-    if (activeTab !== "disassembly") return;
-
     const { top, height } = trackBoundsRef.current;
     const windowHeight = window.innerHeight;
     const totalScrollable = height - windowHeight;
@@ -111,16 +88,14 @@ function CanPage() {
     const currentScrolled = window.scrollY - top;
     const rawProgress = Math.max(0, Math.min(1, currentScrolled / totalScrollable));
 
-    targetProgressRef.current = rawProgress;
+    pendingProgressRef.current = rawProgress;
 
     if (!rafRef.current) {
-      rafRef.current = requestAnimationFrame(animateInterpolation);
+      rafRef.current = requestAnimationFrame(commitPendingProgress);
     }
-  }, [activeTab, animateInterpolation]);
+  }, [commitPendingProgress]);
 
   useEffect(() => {
-    if (activeTab !== "disassembly") return;
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
 
@@ -131,28 +106,63 @@ function CanPage() {
         rafRef.current = 0;
       }
     };
-  }, [activeTab, handleScroll]);
+  }, [handleScroll]);
 
-  // Smooth scroll to stage milestone
-  const scrollToStep = (stepIndex: number) => {
-    if (!scrollTrackRef.current) return;
-    updateTrackBounds();
-    const { top, height } = trackBoundsRef.current;
-    const totalScrollable = height - window.innerHeight;
+  // Smooth scroll to stage milestone.
+  // These are rest positions inside each state's hold (start/end for the
+  // first/last state), deliberately distinct from the stage BOUNDARIES in
+  // CAN_STAGE_TRANSITIONS — so they stay local here rather than being
+  // derived from boundaries.
+  // Stable across renders (refs + memoized geometry only): consumers such
+  // as the autoplay interval can safely depend on it without resetting.
+  const scrollToStep = useCallback(
+    (stepIndex: number) => {
+      if (!scrollTrackRef.current) return;
+      updateTrackBounds();
+      const { top, height } = trackBoundsRef.current;
+      const totalScrollable = height - window.innerHeight;
 
-    const stepTargets = [0.00, 0.28, 0.52, 0.74, 1.00];
-    const targetRatio = stepTargets[stepIndex] ?? 0;
-    const targetScrollY = top + targetRatio * totalScrollable;
+      const stepTargets = [0.0, 0.28, 0.52, 0.74, 1.0];
+      const targetRatio = stepTargets[stepIndex] ?? 0;
+      const targetScrollY = top + targetRatio * totalScrollable;
 
-    window.scrollTo({
-      top: targetScrollY,
-      behavior: "smooth",
-    });
-  };
+      window.scrollTo({
+        top: targetScrollY,
+        behavior: "smooth",
+      });
+    },
+    [updateTrackBounds],
+  );
 
   const handleSelectComponent = (id: CanComponentId) => {
-    setSelectedComponentId(id);
+    setSelectedComponentId((prev) => (prev === id ? null : id));
   };
+
+  // Shared stage-change path for the stepper and the mobile stage shortcut:
+  // smooth-scroll to the stage milestone and let scroll (the source of truth)
+  // drive the animation; a selection belongs to its step, so release it.
+  // Memoized so the autoplay interval (which depends on this callback) is
+  // not torn down by unrelated renders — only by genuine step changes,
+  // which the interval effect already tracks via currentStep.
+  const goToStep = useCallback(
+    (stepIndex: number) => {
+      scrollToStep(stepIndex);
+      setSelectedComponentId(null);
+    },
+    [scrollToStep],
+  );
+
+  // Single coordination seam: a selection belongs to its narrative step.
+  // Crossing into a new dominant step (wheel, scrubber, stepper, or keyboard
+  // all funnel through currentStep) gracefully releases inspection so the
+  // inspector never shows one state's component over another state's
+  // illustration. Tiny scrolls within a step never touch selection.
+  const prevStepRef = useRef<number>(currentStep);
+  useEffect(() => {
+    if (prevStepRef.current === currentStep) return;
+    prevStepRef.current = currentStep;
+    setSelectedComponentId((prev) => (prev === null ? prev : null));
+  }, [currentStep]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -165,7 +175,7 @@ function CanPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentStep]);
+  }, [currentStep, scrollToStep]);
 
   const activeStepData = DISASSEMBLY_STEPS[currentStep] ?? DISASSEMBLY_STEPS[0]!;
 
@@ -174,206 +184,97 @@ function CanPage() {
       title="Can Specifications"
       subtitle="Engineering architecture and physical disassembly"
     >
-      {/* Overview Card */}
-      <Card className="border-border p-5 sm:p-6">
-        <div className="max-w-2xl">
-          <h2 className="text-base font-semibold text-foreground sm:text-lg">
-            CAD-10 Physical Construction
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            A 3-layer cylindrical milk storage can featuring an HDPE outer wall, polyurethane foam
-            insulation, and a food-grade stainless-steel inner container with four integrated hollow
-            columns spaced at 90° for Phase Change Material.
-          </p>
-        </div>
-
-        {/* Primary Established Dimensions */}
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="rounded-lg border border-border bg-surface p-2.5">
-            <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground/70">
-              Overall Height
-            </span>
-            <p className="numeric mt-0.5 text-lg font-semibold text-foreground">
-              {CAN_DIMENSIONS.overallHeightMm}{" "}
-              <span className="text-xs font-normal text-muted-foreground">mm</span>
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-border bg-surface p-2.5">
-            <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground/70">
-              Main Diameter
-            </span>
-            <p className="numeric mt-0.5 text-lg font-semibold text-foreground">
-              {CAN_DIMENSIONS.mainDiameterMm}{" "}
-              <span className="text-xs font-normal text-muted-foreground">mm</span>
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-border bg-surface p-2.5">
-            <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground/70">
-              Construction
-            </span>
-            <p className="numeric mt-0.5 text-lg font-semibold text-foreground">
-              {CAN_DIMENSIONS.layersCount}{" "}
-              <span className="text-xs font-normal text-muted-foreground">Layers</span>
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-border bg-surface p-2.5">
-            <span className="text-[10px] font-normal uppercase tracking-wider text-muted-foreground/70">
-              Internal Columns
-            </span>
-            <p className="numeric mt-0.5 text-lg font-semibold text-foreground">
-              {CAN_DIMENSIONS.columnsCount}{" "}
-              <span className="text-xs font-normal text-muted-foreground">Hollow</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Mode Switcher */}
-        <div className="mt-4 flex items-center gap-2 border-t border-border/70 pt-3">
-          <button
-            type="button"
-            onClick={() => setActiveTab("disassembly")}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors",
-              activeTab === "disassembly"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "border border-border bg-surface text-muted-foreground hover:bg-secondary hover:text-foreground",
-            )}
-          >
-            <Layers className="h-3.5 w-3.5" />
-            Disassembly View
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("blueprint")}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors",
-              activeTab === "blueprint"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "border border-border bg-surface text-muted-foreground hover:bg-secondary hover:text-foreground",
-            )}
-          >
-            <Cylinder className="h-3.5 w-3.5" />
-            Drawing &amp; BOM
-          </button>
-        </div>
-      </Card>
-
       {/* Disassembly Experience */}
-      {activeTab === "disassembly" ? (
-        <div className="mt-6">
-          {/* Stepper Controller */}
-          <CanStepController
-            currentStep={currentStep}
-            onStepChange={(step) => {
-              scrollToStep(step);
-              setSelectedComponentId(null);
-            }}
-          />
+      <div className="mt-4">
+        {/* Stepper Controller */}
+        <CanStepController currentStep={currentStep} onStepChange={goToStep} />
 
-          <p className="mt-3 px-1 text-[11px] text-muted-foreground">
-            Scroll down to disassemble layers
-          </p>
+        <p className="mt-3 px-1 text-[11px] text-muted-foreground">
+          Scroll down to disassemble layers
+        </p>
 
-          {/* Tall Scroll Track */}
-          <div ref={scrollTrackRef} className="relative mt-3 min-h-[420vh]">
-            <div className="sticky top-20 z-10 flex flex-col gap-2.5">
-              <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs lg:grid lg:grid-cols-[1.15fr_0.85fr]">
-                {/* LEFT Column: Visual Canvas + Hotspots + Integrated Scrubber */}
-                <div className="flex flex-col justify-between">
-                  <CanDisassemblyStage
-                    className="rounded-none border-0 bg-transparent shadow-none"
-                    currentStep={currentStep}
-                    scrollProgress={scrollProgress}
-                    selectedComponentId={selectedComponentId}
-                    onSelectComponent={handleSelectComponent}
-                  />
+        {/* Tall Scroll Track — height is the pacing budget: the same 0→1
+              timeline stretches over more scroll distance, so each state gets
+              a calm inspection hold. Mobile stays shorter to avoid fatigue. */}
+        <div
+          ref={scrollTrackRef}
+          data-can-track
+          className="relative mt-3 min-h-[380vh] sm:min-h-[450vh] lg:min-h-[620vh]"
+        >
+          <div className="sticky top-16 z-10 flex flex-col gap-2.5 sm:top-20">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-xs lg:grid lg:grid-cols-[1.15fr_0.85fr]">
+              {/* LEFT Column: Visual Canvas + Hotspots + Integrated Scrubber */}
+              <div className="flex flex-col justify-between">
+                <CanDisassemblyStage
+                  className="rounded-none border-0 bg-transparent shadow-none"
+                  currentStep={currentStep}
+                  scrollProgress={scrollProgress}
+                  selectedComponentId={selectedComponentId}
+                  onSelectComponent={handleSelectComponent}
+                />
 
-                  {/* Scrubber slider integrated at bottom of LEFT column */}
-                  <div className="border-t border-border/60 bg-surface/50 p-2.5">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground">Scrub Assembly</span>
-                      <span className="numeric text-muted-foreground">
-                        {Math.round(scrollProgress * 100)}%
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.001"
-                      value={scrollProgress}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        targetProgressRef.current = val;
-                        currentProgressRef.current = val;
-                        setScrollProgress(val);
-                        if (scrollTrackRef.current) {
-                          updateTrackBounds();
-                          const { top, height } = trackBoundsRef.current;
-                          const totalScrollable = height - window.innerHeight;
-                          window.scrollTo({
-                            top: top + val * totalScrollable,
-                            behavior: "auto",
-                          });
-                        }
-                      }}
-                      className="mt-1.5 h-1.5 w-full cursor-ew-resize accent-[var(--primary)]"
-                      aria-label="Disassembly scrubber"
-                    />
+                {/* Scrubber slider integrated at bottom of LEFT column */}
+                <div className="border-t border-border/60 bg-surface/50 p-2.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Scrub Assembly</span>
+                    <span className="numeric text-muted-foreground">
+                      {Math.round(scrollProgress * 100)}%
+                    </span>
                   </div>
-                </div>
-
-                {/* RIGHT Column: ONE compact contextual information panel */}
-                <div className="pointer-events-none absolute inset-x-2 bottom-2 z-30 lg:relative lg:inset-auto lg:z-auto lg:flex lg:h-full lg:flex-col lg:border-l lg:border-border">
-                  <CanInspector
-                    className="mx-auto w-full max-w-md lg:h-full lg:max-w-none lg:rounded-none lg:border-0 lg:shadow-none"
-                    activeStepData={activeStepData}
-                    selectedId={selectedComponentId}
-                    onClose={() => setSelectedComponentId(null)}
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value={scrollProgress}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      pendingProgressRef.current = val;
+                      setScrollProgress(val);
+                      if (scrollTrackRef.current) {
+                        updateTrackBounds();
+                        const { top, height } = trackBoundsRef.current;
+                        const totalScrollable = height - window.innerHeight;
+                        window.scrollTo({
+                          top: top + val * totalScrollable,
+                          behavior: "auto",
+                        });
+                      }
+                    }}
+                    className="mt-1.5 h-1.5 w-full cursor-ew-resize accent-[var(--primary)]"
+                    aria-label="Disassembly scrubber"
                   />
                 </div>
-
-                {/* Vector Leader Line Connector */}
-                <CanLeaderLine selectedId={selectedComponentId} activeStepData={activeStepData} />
               </div>
+
+              {/* RIGHT Column: ONE compact contextual information panel */}
+              <div
+                className={`${selectedComponentId ? "pointer-events-auto" : "pointer-events-none"} absolute inset-x-2 bottom-2 z-30 max-h-[52vh] overflow-y-auto sm:max-h-[60vh] lg:relative lg:inset-auto lg:z-auto lg:flex lg:h-full lg:max-h-none lg:flex-col lg:overflow-visible lg:border-l lg:border-border`}
+              >
+                <CanInspector
+                  className={
+                    selectedComponentId
+                      ? "mx-auto w-full max-w-md lg:h-full lg:max-w-none"
+                      : "mx-auto w-full max-w-md lg:h-full lg:max-w-none lg:rounded-none lg:border-0 lg:shadow-none"
+                  }
+                  activeStepData={activeStepData}
+                  selectedId={selectedComponentId}
+                  onClose={() => setSelectedComponentId(null)}
+                />
+              </div>
+
+              {/* Vector Leader Line Connector */}
+              <CanLeaderLine selectedId={selectedComponentId} activeStepData={activeStepData} />
             </div>
           </div>
         </div>
-      ) : (
-        <div className="mt-6">
-          <CanBlueprint />
-        </div>
-      )}
+      </div>
 
-      {/* Cross-Link Footer */}
-      <Card className="mt-8 flex flex-wrap items-center justify-between gap-3 p-4">
-        <span className="text-xs text-muted-foreground">
-          CAD-10 Engineering Documentation · Stage B
-        </span>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            to="/team"
-            className="inline-flex h-8 items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium hover:bg-secondary"
-          >
-            Our Team
-          </Link>
-          <Link
-            to="/maintenance"
-            className="inline-flex h-8 items-center rounded-lg border border-border bg-surface px-3 text-xs font-medium hover:bg-secondary"
-          >
-            Maintenance
-          </Link>
-          <Link
-            to="/pcm"
-            className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            PCM Status
-          </Link>
-        </div>
-      </Card>
+      {/* Mobile-only stage shortcut — unmounted while inspecting so it can
+          never cover the docked inspector sheet. */}
+      {selectedComponentId ? null : (
+        <CanStageNavigator currentStep={currentStep} onStepChange={goToStep} />
+      )}
     </AppShell>
   );
 }

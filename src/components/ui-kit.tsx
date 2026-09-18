@@ -1,4 +1,4 @@
-import type { ReactNode, InputHTMLAttributes } from "react";
+import type { ReactNode, InputHTMLAttributes, ElementType } from "react";
 import { cn } from "@/lib/utils";
 import type { StatusLevel } from "@/types";
 
@@ -9,7 +9,7 @@ export function Card({
 }: {
   children: ReactNode;
   className?: string;
-  as?: any;
+  as?: ElementType;
 }) {
   return (
     <As className={cn("rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5", className)}>
@@ -18,11 +18,15 @@ export function Card({
   );
 }
 
-export function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+export function SectionTitle({ title, subtitle }: { title: ReactNode; subtitle?: ReactNode }) {
   return (
-    <div className="mb-3">
-      <h2 className="text-base font-semibold sm:text-lg">{title}</h2>
-      {subtitle ? <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p> : null}
+    <div className="mb-3 min-w-0">
+      <h2 className="break-words text-base font-semibold leading-snug sm:text-lg">{title}</h2>
+      {subtitle ? (
+        <p className="mt-0.5 break-words text-sm leading-relaxed text-muted-foreground">
+          {subtitle}
+        </p>
+      ) : null}
     </div>
   );
 }

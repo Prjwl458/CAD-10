@@ -1,6 +1,5 @@
 import { store } from "./storage";
-import type { CoolingRecord, MaintenanceRecord, MilkBatch, PcmRecord } from "@/types";
-import { comparePredictedVsActual } from "@/calculations";
+import type { MaintenanceRecord, PcmRecord } from "@/types";
 
 const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 
@@ -40,11 +39,18 @@ export function completePcmCycle(
     ...pcm,
     currentCycle: pcm.currentCycle + 1,
     lastUsedDate: now,
-    lastRechargeDate: opts.recharged ? now : pcm.lastRechargeDate,
-    lastKnownCondition: opts.condition || pcm.lastKnownCondition,
-    notes: opts.notes ?? pcm.notes,
-    activeCycleStartedAt: undefined,
   };
+  // Optional fields are assigned only when defined: with
+  // exactOptionalPropertyTypes an absent property must stay absent rather
+  // than being set to undefined. Read semantics are unchanged (both read
+  // back as undefined) and JSON persistence drops undefined keys either way.
+  const lastRechargeDate = opts.recharged ? now : pcm.lastRechargeDate;
+  if (lastRechargeDate !== undefined) updated.lastRechargeDate = lastRechargeDate;
+  const lastKnownCondition = opts.condition || pcm.lastKnownCondition;
+  if (lastKnownCondition !== undefined) updated.lastKnownCondition = lastKnownCondition;
+  const notes = opts.notes ?? pcm.notes;
+  if (notes !== undefined) updated.notes = notes;
+  delete updated.activeCycleStartedAt;
   store.upsertPcm(updated);
   return {
     ok: true,
@@ -66,61 +72,13 @@ export function registerPcm(
   const now = new Date().toISOString();
   store.upsertPcm({
     pcmId: clean,
-    tagUid,
     currentCycle: 0,
     validatedCycleLimit,
     installationDate: now,
     createdAt: now,
+    ...(tagUid !== undefined ? { tagUid } : {}),
   });
   return { ok: true, message: `${clean} registered.` };
-}
-
-export function finishChillingSession(finalTemperature: number): WorkflowResult {
-  const session = store.getSession();
-  if (!session) return { ok: false, message: "No chilling session is running." };
-  const end = new Date();
-  const actual = Math.max(
-    1,
-    Math.round((end.getTime() - new Date(session.startTime).getTime()) / 60000),
-  );
-  const { performance } = comparePredictedVsActual(session.expectedCoolingTime, actual);
-
-  const batch: MilkBatch = {
-    batchId: session.batchId,
-    quantity: session.quantity,
-    initialTemperature: session.initialTemperature,
-    targetTemperature: session.targetTemperature,
-    finalTemperature,
-    ambientTemperature: session.ambientTemperature,
-    startTime: session.startTime,
-    endTime: end.toISOString(),
-    coolingTime: actual,
-    pcmId: session.pcmId,
-    pcmCycle: session.pcmCycle,
-  };
-  store.addBatch(batch);
-
-  const record: CoolingRecord = {
-    recordId: `CR-${Date.now()}`,
-    date: end.toISOString(),
-    milkBatchId: session.batchId,
-    pcmId: session.pcmId,
-    pcmCycle: session.pcmCycle,
-    quantity: session.quantity,
-    initialTemperature: session.initialTemperature,
-    finalTemperature,
-    targetTemperature: session.targetTemperature,
-    ambientTemperature: session.ambientTemperature,
-    expectedCoolingTime: session.expectedCoolingTime,
-    actualCoolingTime: actual,
-    performance,
-  };
-  store.addCoolingRecord(record);
-  store.setSession(null);
-  return {
-    ok: true,
-    message: `Cooling recorded: ${actual} min (expected ${session.expectedCoolingTime} min).`,
-  };
 }
 
 export function addMaintenance(type: string, description: string): MaintenanceRecord {
@@ -133,9 +91,4 @@ export function addMaintenance(type: string, description: string): MaintenanceRe
   };
   store.addMaintenance(record);
   return record;
-}
-
-export function nextBatchId(): string {
-  const count = store.getBatches().length + 1047;
-  return `MB-${count + 1}`;
 }

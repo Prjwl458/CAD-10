@@ -77,14 +77,14 @@ export function CanInspector({
           </p>
           <h3
             key={`${contentKey}-title`}
-            className="animate-in fade-in mt-0.5 truncate text-sm font-semibold text-foreground duration-200"
+            className="animate-in fade-in mt-0.5 break-words text-sm font-semibold leading-snug text-foreground duration-200"
           >
             {title}
           </h3>
           {material ? (
             <p
               key={`${contentKey}-material`}
-              className="animate-in fade-in mt-0.5 truncate text-[11px] text-muted-foreground duration-200"
+              className="animate-in fade-in mt-0.5 break-words text-[11px] leading-relaxed text-muted-foreground duration-200"
             >
               {material}
             </p>
@@ -96,9 +96,9 @@ export function CanInspector({
             type="button"
             onClick={onClose}
             aria-label="Close component information"
-            className="-mr-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </button>
         ) : null}
       </div>

@@ -5,7 +5,6 @@ import { AppShell } from "@/components/AppShell";
 import {
   Button,
   Card,
-  Field,
   Note,
   Row,
   SectionTitle,
@@ -71,7 +70,7 @@ function MaintenancePage() {
   const records = useCoolingRecords();
 
   const [checked, setChecked] = useState<string[]>([]);
-  const [category, setCategory] = useState(ISSUE_CATEGORIES[0]);
+  const [category, setCategory] = useState(ISSUE_CATEGORIES[0]!);
   const [description, setDescription] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -175,7 +174,7 @@ function MaintenancePage() {
             {MAINTENANCE_CHECKS.map((item) => (
               <label
                 key={item}
-                className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-sm"
+                className="flex min-h-11 items-start gap-3 rounded-xl border border-border px-3 py-2 text-sm"
               >
                 <input
                   type="checkbox"
@@ -185,9 +184,9 @@ function MaintenancePage() {
                       e.target.checked ? [...c, item] : c.filter((x) => x !== item),
                     )
                   }
-                  className="h-5 w-5 accent-[var(--primary)]"
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--primary)]"
                 />
-                {item}
+                <span className="min-w-0 flex-1 break-words leading-relaxed">{item}</span>
               </label>
             ))}
           </div>

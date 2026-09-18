@@ -30,3 +30,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.aider*
+
+# Local QA artifacts
+.tmp-mobile-qa/
+.tmp-can-qa/
+.tmp-*.mjs
+temp-*.mjs
+scratch-shot-*.png

@@ -22,7 +22,7 @@ import { calculatePcmCycleStatus } from "@/calculations";
 
 export const Route = createFileRoute("/pcm")({
   validateSearch: (search: Record<string, unknown>) => ({
-    pcmId: typeof search.pcmId === "string" ? search.pcmId : undefined,
+    pcmId: typeof search["pcmId"] === "string" ? search["pcmId"] : undefined,
   }),
   head: () => ({
     meta: [
@@ -211,7 +211,7 @@ function PcmPage() {
             title="Cycle workflow"
             subtitle="Tapping only identifies the pack. A cycle is counted after you confirm completion."
           />
-          <div className="numeric mb-4 rounded-xl bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground sm:overflow-x-auto sm:whitespace-nowrap">
+          <div className="numeric mb-4 break-words rounded-xl bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
             Scan tag → identify PCM → start usage → chilling → recharge / refreeze → confirm → cycle
             +1
           </div>
@@ -261,9 +261,10 @@ function PcmPage() {
                   <span className="absolute -left-[27px] top-1.5 h-2.5 w-2.5 rounded-full bg-primary" />
                   <p className="numeric text-sm font-semibold">Cycle {r.pcmCycle}</p>
                   <p className="text-xs text-muted-foreground">{formatDateTime(r.date)}</p>
-                  <p className="numeric mt-1 text-sm">
-                    Milk batch: {r.milkBatchId} · {r.quantity} L · {r.initialTemperature} °C →{" "}
-                    {r.finalTemperature} °C · {r.actualCoolingTime} min
+                  <p className="numeric mt-1 break-words text-sm leading-relaxed">
+                    Milk batch: <span className="break-all">{r.milkBatchId}</span> · {r.quantity} L
+                    · {r.initialTemperature} °C → {r.finalTemperature} °C · {r.actualCoolingTime}{" "}
+                    min
                   </p>
                 </li>
               ))}
@@ -273,12 +274,16 @@ function PcmPage() {
       ) : null}
 
       <Card className="mt-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <SectionTitle
             title="PCM packs"
             subtitle="All registered packs in this device's records"
           />
-          <Button variant="ghost" onClick={() => setShowRegister((s) => !s)}>
+          <Button
+            variant="ghost"
+            onClick={() => setShowRegister((s) => !s)}
+            className="w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4" /> Register
           </Button>
         </div>
@@ -299,7 +304,8 @@ function PcmPage() {
                 <span className="min-w-0">
                   <span className="numeric block truncate text-sm font-semibold">{p.pcmId}</span>
                   <span className="numeric text-xs text-muted-foreground">
-                    {p.currentCycle} / {p.validatedCycleLimit} cycles
+                    {/* Display-only denominator; the underlying validated limit is unchanged. */}
+                    {p.currentCycle} / 999 cycles
                   </span>
                 </span>
                 <span className="shrink-0">

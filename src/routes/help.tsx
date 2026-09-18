@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Mail } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button, Card, Note, SectionTitle } from "@/components/ui-kit";
 
@@ -146,18 +146,31 @@ const SECTIONS: Section[] = [
 function HelpPage() {
   return (
     <AppShell title="Help" subtitle="Digital help book — available offline">
+      <div className="mb-4 flex justify-end">
+        <a
+          href="https://mail.google.com/mail/?view=cm&to=tanmaykarpe24@gmail.com&su=CAD-10%20Support%20Request"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Mail className="h-4 w-4 text-primary" /> Contact Support
+        </a>
+      </div>
       <LocationCard />
       <div className="mt-4 space-y-4">
         {SECTIONS.map((section) => (
-          <Card key={section.title}>
+          <Card key={section.title} className="min-w-0">
             <SectionTitle title={section.title} />
             <div className="space-y-2">
               {section.items.map((item) => (
-                <details key={item.heading} className="rounded-xl border border-border px-3 py-2">
-                  <summary className="cursor-pointer py-1 text-sm font-semibold">
+                <details
+                  key={item.heading}
+                  className="min-w-0 rounded-xl border border-border px-3 py-2"
+                >
+                  <summary className="min-h-11 cursor-pointer list-none break-words py-2 text-sm font-semibold leading-snug [&::-webkit-details-marker]:hidden">
                     {item.heading}
                   </summary>
-                  <p className="pb-2 pt-1 text-sm leading-relaxed text-muted-foreground">
+                  <p className="break-words pb-2 pt-1 text-sm leading-relaxed text-muted-foreground">
                     {item.body}
                   </p>
                 </details>

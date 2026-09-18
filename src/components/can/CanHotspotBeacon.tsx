@@ -40,32 +40,34 @@ export function CanHotspotBeacon({
         className,
       )}
     >
-      {/* Precision Engineering Inspection Pip */}
+      {/* Restrained technical marker: crisp 12px pip, 44px tap target kept on
+          the button. Tappable at a glance via high-contrast dot + halo ring. */}
       <span
         className={cn(
-          "relative flex items-center justify-center rounded-full transition-all duration-150",
+          "relative flex items-center justify-center rounded-full bg-surface shadow-[0_1px_3px_rgba(15,35,60,0.35)] ring-1 ring-primary/40 transition-all duration-150",
           isSelected
-            ? "h-3.5 w-3.5 border-2 border-primary bg-surface ring-2 ring-primary/30"
-            : "h-3 w-3 border border-primary/70 bg-surface shadow-xs group-hover:scale-110 group-hover:border-primary group-hover:bg-primary/10",
+            ? "h-4 w-4 border-2 border-primary bg-primary ring-2 ring-primary/50"
+            : "h-3 w-3 border-[1.5px] border-primary/80 group-hover:scale-125 group-hover:border-primary group-hover:ring-2 group-hover:ring-primary/30 group-focus-visible:ring-2 group-focus-visible:ring-primary/60",
         )}
       >
         <span
           className={cn(
-            "rounded-full transition-all",
-            isSelected ? "h-1.5 w-1.5 bg-primary" : "h-1 w-1 bg-primary/80 group-hover:bg-primary",
+            "rounded-full",
+            isSelected ? "h-1.5 w-1.5 bg-primary-foreground" : "h-[5px] w-[5px] bg-primary",
           )}
         />
       </span>
 
-      {/* Clean Engineering Coordinate Tag */}
+      {/* Engineering callout tag: reveal on hover/focus/selection only, so
+          labels never collide. Position rule unchanged (above/below). */}
       <span
         className={cn(
-          "pointer-events-none absolute whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-medium tracking-tight shadow-xs transition-opacity duration-150",
+          "pointer-events-none absolute whitespace-nowrap rounded-md border px-2 py-0.5 text-[10px] font-medium tracking-wide shadow-sm transition-opacity duration-150",
           labelAbove
             ? "bottom-full mb-1 -translate-x-1/2"
             : "left-1/2 top-full mt-1 -translate-x-1/2",
           isSelected
-            ? "border-primary/40 bg-surface text-foreground opacity-100 font-semibold"
+            ? "border-primary/50 bg-surface font-semibold text-foreground opacity-100"
             : "border-border bg-surface/95 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
         )}
       >

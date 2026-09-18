@@ -27,14 +27,9 @@ export function useMaintenance() {
 export function useServiceRequests() {
   return useStoreValue(() => store.getServiceRequests(), []);
 }
-export function useCalibration() {
-  return useStoreValue(() => store.getCalibration(), []);
-}
 export function useSettings() {
   return useStoreValue(() => store.getSettings(), {
     demoMode: true,
-    milkPricePerLitre: 0,
-    researchMode: false,
   });
 }
 export function useConfig() {

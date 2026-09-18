@@ -10,10 +10,9 @@ import {
   Menu,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/hooks/useStore";
-import { store } from "@/services/storage";
 import { DemoBadge } from "./ui-kit";
 
 export type NavItem = {
@@ -55,16 +54,51 @@ export function AppShell({
   subtitle,
   children,
 }: {
-  title: string;
-  subtitle?: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
   children: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const settings = useSettings();
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  // Marks closes that would strand focus on an unmounting element (backdrop
+  // tap). The effect below then returns focus to the persistent trigger.
+  // Navigation-link closes are excluded on purpose: the router owns focus
+  // across route changes and must not be interfered with.
+  const restoreTriggerFocusRef = useRef(false);
 
   const isMoreActive =
     pathname.startsWith("/team") || pathname.startsWith("/help") || pathname.startsWith("/login");
+
+  // Close the More sheet on Escape and lock background scroll while it is open.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMoreOpen(false);
+        moreButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    moreMenuRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [moreOpen]);
+
+  // Return focus to the trigger after closes that unmount the focused
+  // element. Runs post-commit so the trigger is mounted; the optional chain
+  // makes a route-change unmount a safe no-op. No timers involved.
+  useEffect(() => {
+    if (moreOpen || !restoreTriggerFocusRef.current) return;
+    restoreTriggerFocusRef.current = false;
+    moreButtonRef.current?.focus();
+  }, [moreOpen]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -98,24 +132,20 @@ export function AppShell({
             );
           })}
         </nav>
-        <button
-          type="button"
-          onClick={() => store.saveSettings({ ...settings, demoMode: !settings.demoMode })}
-          className="mt-2 rounded-xl border border-border px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-secondary"
-        >
-          Demo sensor feed:{" "}
-          <span className="font-semibold text-foreground">{settings.demoMode ? "ON" : "OFF"}</span>
-        </button>
       </aside>
 
       {/* Main Content Area */}
       <div className="lg:pl-60">
         <header className="sticky top-0 z-20 border-b border-border bg-background/90 px-4 py-3 backdrop-blur sm:px-6">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-start justify-between gap-3 sm:items-center">
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-base font-semibold sm:text-xl">{title}</h1>
+              <h1 className="break-words text-base font-semibold leading-snug sm:truncate sm:text-xl">
+                {title}
+              </h1>
               {subtitle ? (
-                <p className="truncate text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
+                <p className="mt-0.5 break-words text-xs leading-relaxed text-muted-foreground sm:truncate sm:text-sm">
+                  {subtitle}
+                </p>
               ) : null}
             </div>
             {settings.demoMode ? (
@@ -135,7 +165,10 @@ export function AppShell({
       {moreOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity lg:hidden"
-          onClick={() => setMoreOpen(false)}
+          onClick={() => {
+            restoreTriggerFocusRef.current = true;
+            setMoreOpen(false);
+          }}
           aria-hidden="true"
         />
       )}
@@ -144,7 +177,9 @@ export function AppShell({
       {moreOpen && (
         <div
           id="mobile-more-menu"
+          ref={moreMenuRef}
           role="dialog"
+          aria-modal="true"
           aria-label="More navigation options"
           className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 rounded-2xl border border-border bg-card p-2 shadow-2xl animate-in fade-in-0 zoom-in-95 lg:hidden"
         >
@@ -168,25 +203,6 @@ export function AppShell({
                 </Link>
               );
             })}
-            <div className="my-1 border-t border-border" />
-            <button
-              type="button"
-              onClick={() => {
-                store.saveSettings({ ...settings, demoMode: !settings.demoMode });
-                setMoreOpen(false);
-              }}
-              className="flex min-h-11 w-full items-center justify-between rounded-xl px-3.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <span>Demo sensor feed</span>
-              <span
-                className={cn(
-                  "rounded-md px-2 py-0.5 text-xs font-semibold",
-                  settings.demoMode ? "bg-primary/10 text-primary" : "text-muted-foreground",
-                )}
-              >
-                {settings.demoMode ? "ON" : "OFF"}
-              </span>
-            </button>
           </div>
         </div>
       )}
@@ -229,6 +245,7 @@ export function AppShell({
           );
         })}
         <button
+          ref={moreButtonRef}
           type="button"
           aria-label="Open more navigation"
           aria-expanded={moreOpen}

@@ -5,10 +5,8 @@
 import type {
   ActiveSession,
   AppSettings,
-  CalibrationRecord,
   CoolingRecord,
   MaintenanceRecord,
-  MilkBatch,
   PcmRecord,
   ServiceRequest,
 } from "@/types";
@@ -19,10 +17,8 @@ const LEGACY_PCM_CYCLE_LIMIT = 100;
 
 const KEYS = {
   pcm: PREFIX + "pcm",
-  batches: PREFIX + "batches",
   cooling: PREFIX + "cooling",
   maintenance: PREFIX + "maintenance",
-  calibration: PREFIX + "calibration",
   service: PREFIX + "service",
   settings: PREFIX + "settings",
   config: PREFIX + "config",
@@ -51,10 +47,16 @@ function write<T>(key: string, value: T) {
   }
 }
 
+/**
+ * Narrowing for parsed JSON: only a non-null object can carry record fields.
+ * Arrays are checked separately with Array.isArray at each read site.
+ */
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export const DEFAULT_SETTINGS: AppSettings = {
   demoMode: true,
-  milkPricePerLitre: 0,
-  researchMode: false,
 };
 
 function migratePcmCycleLimit(limit: number): number {
@@ -116,8 +118,17 @@ function seedPcm(): PcmRecord[] {
 export const store = {
   // ---- PCM ----
   getPcmRecords(): PcmRecord[] {
-    const existing = read<PcmRecord[] | null>(KEYS.pcm, null);
-    if (existing && existing.length) {
+    // Valid JSON with the wrong shape (e.g. a string, which also has a
+    // .length, or an object) must fall back instead of crashing on .map.
+    // Items must be objects with a string pcmId: getPcm calls
+    // pcmId.toUpperCase(), which throws on missing IDs.
+    const stored = read<unknown>(KEYS.pcm, null);
+    const existing = Array.isArray(stored)
+      ? stored.filter(
+          (record): record is PcmRecord => isObject(record) && typeof record["pcmId"] === "string",
+        )
+      : [];
+    if (existing.length) {
       const migrated = existing.map((record) =>
         migratePcmRecord({
           ...record,
@@ -156,38 +167,35 @@ export const store = {
     write(KEYS.pcm, records);
   },
 
-  // ---- Milk batches ----
-  getBatches: () => read<MilkBatch[]>(KEYS.batches, []),
-  addBatch(batch: MilkBatch) {
-    write(KEYS.batches, [batch, ...store.getBatches()]);
-  },
-  updateBatch(batch: MilkBatch) {
-    write(
-      KEYS.batches,
-      store.getBatches().map((b) => (b.batchId === batch.batchId ? batch : b)),
-    );
-  },
-
   // ---- Cooling records ----
-  getCoolingRecords: () => read<CoolingRecord[]>(KEYS.cooling, []),
-  addCoolingRecord(record: CoolingRecord) {
-    write(KEYS.cooling, [record, ...store.getCoolingRecords()]);
+  // Non-object items (e.g. null) are dropped: readers access record fields
+  // directly, which throws on null. Missing fields on plain objects stay
+  // undefined and are already handled by the UI formatters.
+  getCoolingRecords: (): CoolingRecord[] => {
+    const stored = read<unknown>(KEYS.cooling, []);
+    return Array.isArray(stored)
+      ? stored.filter((record): record is CoolingRecord => isObject(record))
+      : [];
   },
 
   // ---- Maintenance ----
-  getMaintenance: () => read<MaintenanceRecord[]>(KEYS.maintenance, []),
+  getMaintenance: (): MaintenanceRecord[] => {
+    const stored = read<unknown>(KEYS.maintenance, []);
+    return Array.isArray(stored)
+      ? stored.filter((record): record is MaintenanceRecord => isObject(record))
+      : [];
+  },
   addMaintenance(record: MaintenanceRecord) {
     write(KEYS.maintenance, [record, ...store.getMaintenance()]);
   },
 
-  // ---- Calibration ----
-  getCalibration: () => read<CalibrationRecord[]>(KEYS.calibration, []),
-  addCalibration(record: CalibrationRecord) {
-    write(KEYS.calibration, [record, ...store.getCalibration()]);
-  },
-
   // ---- Service requests ----
-  getServiceRequests: () => read<ServiceRequest[]>(KEYS.service, []),
+  getServiceRequests: (): ServiceRequest[] => {
+    const stored = read<unknown>(KEYS.service, []);
+    return Array.isArray(stored)
+      ? stored.filter((record): record is ServiceRequest => isObject(record))
+      : [];
+  },
   addServiceRequest(record: ServiceRequest) {
     write(KEYS.service, [record, ...store.getServiceRequests()]);
   },
@@ -201,17 +209,21 @@ export const store = {
   },
 
   // ---- Settings & config ----
-  getSettings: (): AppSettings => ({
-    ...DEFAULT_SETTINGS,
-    ...read<Partial<AppSettings>>(KEYS.settings, {}),
-  }),
+  getSettings: (): AppSettings => {
+    // Only a JSON object can carry settings; anything else keeps defaults.
+    const stored = read<unknown>(KEYS.settings, null);
+    return { ...DEFAULT_SETTINGS, ...(isObject(stored) ? stored : {}) };
+  },
   saveSettings(settings: AppSettings) {
     write(KEYS.settings, settings);
   },
   getConfig: (): EngineeringConfig => {
+    // Only a JSON object can carry config overrides; anything else keeps
+    // defaults before the legacy-limit migration below runs unchanged.
+    const stored = read<unknown>(KEYS.config, null);
     const config = {
       ...DEFAULT_ENGINEERING_CONFIG,
-      ...read<Partial<EngineeringConfig>>(KEYS.config, {}),
+      ...(isObject(stored) ? stored : {}),
     };
     const migratedLimit = migratePcmCycleLimit(config.validatedPcmCycleLimit);
     if (migratedLimit !== config.validatedPcmCycleLimit) {

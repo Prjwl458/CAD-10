@@ -1,21 +1,27 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { mkdtempSync } from "node:fs";
 
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const PORT = 9375;
+const PORT = 9380;
+const DEV_PORT = 3025;
+const OUT_DIR = ".tmp-mobile-qa";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const vite = spawn("bun", ["run", "dev", "--port", "3020"], {
+const ROUTES = ["/", "/dashboard", "/pcm", "/can", "/maintenance", "/help", "/login", "/team"];
+const WIDTHS = [320, 360, 390, 430, 1024, 1280, 1440];
+
+const vite = spawn("bun", ["run", "dev", "--port", String(DEV_PORT)], {
   cwd: "D:/Projects/CAD-10",
   shell: true,
   stdio: "ignore",
 });
 
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 60; i++) {
   try {
-    const res = await fetch("http://localhost:3020/can");
+    const res = await fetch(`http://localhost:${DEV_PORT}/`);
     if (res.status === 200) break;
   } catch {}
   await sleep(250);
@@ -29,7 +35,7 @@ const chrome = spawn(
     "--no-first-run",
     "--no-default-browser-check",
     `--remote-debugging-port=${PORT}`,
-    `--user-data-dir=${mkdtempSync(join(tmpdir(), "qa-shots-"))}`,
+    `--user-data-dir=${mkdtempSync(join(tmpdir(), "mobile-qa-"))}`,
     "about:blank",
   ],
   { stdio: "ignore" },
@@ -90,79 +96,86 @@ class CDP {
 
 async function run() {
   try {
+    mkdirSync(OUT_DIR, { recursive: true });
     const c = new CDP(wsUrl);
     await c.connect();
     await c.send("Page.enable");
     await c.send("Runtime.enable");
 
-    await c.send("Emulation.setDeviceMetricsOverride", {
-      width: 1440,
-      height: 900,
-      deviceScaleFactor: 2,
-      mobile: false,
-    });
+    const report = [];
+    const isMobile = (w) => w < 1024;
 
-    await c.send("Page.navigate", { url: "http://localhost:3020/can" });
-    await sleep(2500);
-
-    // Capture visual clip of the stage
-    const pcts = [0.0, 0.10, 0.20, 0.25, 0.26, 0.28, 0.30, 0.32, 0.35, 0.38, 0.40, 0.45, 0.50, 0.60, 0.70, 0.80, 0.90, 1.0];
-
-    for (const pct of pcts) {
-      await c.ev(`(() => {
-        const divs = Array.from(document.querySelectorAll("div"));
-        const track = divs.find(d => typeof d.className === "string" && d.className.includes("420vh"));
-        if (track) {
-          const rect = track.getBoundingClientRect();
-          const currentScrollY = window.scrollY || window.pageYOffset;
-          const trackTop = rect.top + currentScrollY;
-          const totalScrollable = rect.height - window.innerHeight;
-          const targetY = trackTop + ${pct} * totalScrollable;
-          window.scrollTo({ top: targetY, behavior: "instant" });
-          document.documentElement.scrollTop = targetY;
-          window.dispatchEvent(new Event("scroll"));
-        }
-      })()`);
-      await sleep(300);
-
-      // Get clip rect of the aspect-square canvas
-      const clip = await c.ev(`(() => {
-        const canvas = document.querySelector(".aspect-square");
-        if (!canvas) return null;
-        const rect = canvas.getBoundingClientRect();
-        return {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-          scale: 2
-        };
-      })()`);
-
-      if (clip) {
-        const shot = await c.send("Page.captureScreenshot", {
-          format: "png",
-          clip: {
-            x: clip.x,
-            y: clip.y,
-            width: clip.width,
-            height: clip.height,
-            scale: clip.scale
-          }
+    for (const width of WIDTHS) {
+      for (const route of ROUTES) {
+        await c.send("Emulation.setDeviceMetricsOverride", {
+          width,
+          height: 844,
+          deviceScaleFactor: 1,
+          mobile: isMobile(width),
         });
-        const pctStr = String(Math.round(pct * 100)).padStart(3, "0");
-        writeFileSync(`scratch-shot-${pctStr}.png`, Buffer.from(shot.data, "base64"));
-        console.log(`Captured scratch-shot-${pctStr}.png`);
+        await c.send("Page.navigate", { url: `http://localhost:${DEV_PORT}${route}` });
+        await sleep(2200);
+
+        const metrics = await c.ev(`(() => {
+          const doc = document.documentElement;
+          const scrollWidth = doc.scrollWidth;
+          const innerWidth = window.innerWidth;
+          const offenders = [];
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+          let node = walker.currentNode;
+          let count = 0;
+          while (node && count < 4000) {
+            node = walker.nextNode();
+            count += 1;
+            if (!node || !(node instanceof HTMLElement)) continue;
+            const r = node.getBoundingClientRect();
+            if (r.width > innerWidth + 1 && r.left < innerWidth && r.right > innerWidth) {
+              const label = node.tagName.toLowerCase()
+                + (node.id ? '#' + node.id : '')
+                + (typeof node.className === 'string' && node.className ? '.' + node.className.split(/\\s+/).slice(0, 2).join('.') : '');
+              offenders.push({ label: label.slice(0, 140), width: Math.round(r.width), right: Math.round(r.right) });
+              if (offenders.length >= 8) break;
+            }
+          }
+          return {
+            route: window.location.pathname,
+            scrollWidth,
+            innerWidth,
+            overflow: scrollWidth - innerWidth,
+            bodyHeight: document.body ? document.body.scrollHeight : 0,
+            offenders,
+          };
+        })()`);
+
+        const slug = route === "/" ? "home" : route.replace("/", "");
+        const shot = await c.send("Page.captureScreenshot", { format: "png" });
+        writeFileSync(join(OUT_DIR, `${slug}-${width}.png`), Buffer.from(shot.data, "base64"));
+
+        // Bottom-of-page screenshot for long pages.
+        await c.ev("window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' })");
+        await sleep(500);
+        const bottom = await c.send("Page.captureScreenshot", { format: "png" });
+        writeFileSync(
+          join(OUT_DIR, `${slug}-${width}-bottom.png`),
+          Buffer.from(bottom.data, "base64"),
+        );
+
+        report.push({ width, ...metrics });
+        console.log(
+          `${route} @ ${width}px overflow=${metrics.overflow}px height=${metrics.bodyHeight}px`,
+        );
       }
     }
 
-    console.log("All screenshots captured successfully.");
+    writeFileSync(join(OUT_DIR, "report.json"), JSON.stringify(report, null, 2));
+    console.log("Mobile QA complete. See .tmp-mobile-qa/report.json");
   } catch (err) {
-    console.error("Capture Error:", err);
+    console.error("QA Error:", err);
+    process.exitCode = 1;
   } finally {
     chrome.kill();
     vite.kill();
-    process.exit(0);
+    process.exit();
   }
 }
 

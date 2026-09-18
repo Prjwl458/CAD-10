@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Play, Pause, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { DISASSEMBLY_STEPS } from "@/config/can-specifications";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +37,10 @@ export function CanStepController({
               onStepChange(0);
             }}
             title="Reset to Assembled"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground hover:bg-secondary hover:text-foreground"
+            aria-label="Reset to Assembled"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
-            <RotateCcw className="h-3 w-3" />
+            <RotateCcw className="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -61,7 +62,7 @@ export function CanStepController({
               onStepChange(Math.max(0, currentStep - 1));
             }}
             aria-label="Previous stage"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
@@ -73,7 +74,7 @@ export function CanStepController({
               onStepChange(Math.min(DISASSEMBLY_STEPS.length - 1, currentStep + 1));
             }}
             aria-label="Next stage"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
@@ -81,7 +82,7 @@ export function CanStepController({
       </div>
 
       {/* Segmented Stepper Tabs */}
-      <div className="mt-2.5 grid grid-cols-5 gap-1 rounded-lg border border-border bg-surface p-1">
+      <div className="mt-2.5 grid grid-cols-3 gap-1 rounded-lg border border-border bg-surface p-1 sm:grid-cols-5">
         {DISASSEMBLY_STEPS.map((step) => {
           const isActive = step.step === currentStep;
           return (
@@ -92,15 +93,18 @@ export function CanStepController({
                 setIsPlaying(false);
                 onStepChange(step.step);
               }}
+              aria-pressed={isActive}
               className={cn(
-                "group flex min-h-10 flex-col items-center justify-center rounded-md px-1 py-1 text-center transition-all",
+                "group flex min-h-11 min-w-0 flex-col items-center justify-center rounded-md px-1 py-1.5 text-center transition-all",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-xs font-medium"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground",
               )}
             >
               <span className="numeric text-[10px] opacity-75">{step.stageNumber}</span>
-              <span className="truncate text-[11px] leading-tight">{step.label}</span>
+              <span className="w-full break-words text-[11px] leading-tight sm:truncate">
+                {step.label}
+              </span>
             </button>
           );
         })}

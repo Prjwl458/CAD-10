@@ -51,10 +51,13 @@ export function CanLeaderLine({
       }
 
       // The beacon is located by the exact aria-label it renders from config,
-      // so the hotspot markup never has to change for this to work.
+      // scoped to the DOMINANT hotspot group. A global querySelector could
+      // return a hidden duplicate beacon from another always-mounted state.
       const label = CAN_COMPONENTS[selectedId]?.hotspots[step]?.label;
       const beacon = label
-        ? document.querySelector<HTMLElement>(`button[aria-label="Inspect ${label}"]`)
+        ? (document.querySelector<HTMLElement>(
+            `div[data-active="true"] button[aria-label="Inspect ${label}"]`,
+          ) ?? document.querySelector<HTMLElement>(`button[aria-label="Inspect ${label}"]`))
         : null;
       const panel = document.querySelector<HTMLElement>('[aria-live="polite"]');
       if (!beacon || !panel || panel.getClientRects().length === 0) {
